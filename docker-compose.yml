@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # MinIO for testing S3 requests
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     ports:
       - "9001:9000"
       - "9091:9001"
@@ -29,6 +29,7 @@ services:
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
       - ./ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
+      - ./config:/usr/local/etc/haproxy/config:ro
     depends_on:
       - minio
     healthcheck:
@@ -37,7 +38,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # HAProxy Instance 2 - Active-Active Setup  
+  # HAProxy Instance 2 - Active-Active Setup
   haproxy2:
     image: haproxy:3.0
     ports:
@@ -47,6 +48,7 @@ services:
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
       - ./ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
+      - ./config:/usr/local/etc/haproxy/config:ro
     depends_on:
       - minio
     healthcheck:

@@ -11,13 +11,13 @@ Enterprise-grade rate limiting for MinIO S3 API requests using HAProxy with SSL/
 # 2. Start the services (with SSL/HTTPS support)
 docker-compose up -d
 
-# 3. Add API keys to different rate limit groups
-./manage-api-keys add-key "AKIA1234567890ABCDEF" "premium"
-./manage-api-keys add-key "your-standard-key" "standard"
-./manage-api-keys add-key "basic-client-key" "basic"
+# 3. Generate real MinIO service accounts (50 accounts)
+./generate-service-accounts.sh
 
-# 4. Run comprehensive parallel testing
-go run test-suite.go
+# 4. Run comprehensive testing with real accounts
+cd cmd/comprehensive-test && go run main.go
+cd cmd/load-test && go run main.go
+cd cmd/rate-diagnostic && go run main.go
 
 # 5. Monitor via HAProxy stats
 open http://localhost:8404/stats
@@ -29,16 +29,31 @@ open http://localhost:8404/stats
 minio-ratelimit/
 ├── haproxy.cfg              # Main HAProxy configuration with SSL/TLS
 ├── docker-compose.yml       # Production deployment setup (dual HAProxy)
-├── manage-api-keys          # API key management script with hot reload
-├── test-suite.go            # Comprehensive Go testing framework
-├── TECHNICAL_DOCUMENTATION.md # Detailed technical implementation guide
+├── generate-service-accounts.sh # Real MinIO service account generator
+├── manage-api-keys-dynamic  # API key management script with hot reload
+├── go.mod                   # Go module dependencies
+├── go.sum                   # Go module checksums
 ├── ssl/
 │   ├── generate-certificates.sh # SSL certificate generation script  
 │   └── certs/               # Generated SSL certificates
 ├── config/
-│   ├── api_keys.json        # API key to group mappings
+│   ├── api_key_groups.map   # HAProxy map file: API key to group mappings (HOT RELOADABLE)
+│   ├── generated_service_accounts.json # Real MinIO service accounts with credentials
 │   └── backups/             # Automatic configuration backups
-└── bin/                     # Experimental implementations
+├── cmd/                     # Go applications organized by function
+│   ├── comprehensive-test/  # Multi-client comprehensive testing
+│   │   ├── main.go          # Full testing suite with MinIO Go client, AWS S3, HTTP API
+│   │   ├── go.mod           # Module dependencies
+│   │   └── go.sum           # Module checksums
+│   ├── rate-diagnostic/     # Individual API key diagnostic tool
+│   │   ├── main.go          # Rate limiting behavior analysis
+│   │   ├── go.mod           # Module dependencies
+│   │   └── go.sum           # Module checksums
+│   └── load-test/           # Load testing with concurrent clients
+│       ├── main.go          # Concurrent load testing framework
+│       ├── go.mod           # Module dependencies
+│       └── go.sum           # Module checksums
+└── bin/                     # Legacy/experimental implementations
     ├── configs/             # Alternative HAProxy configs
     ├── compose/             # Alternative docker-compose files
     ├── tests/               # Legacy test scripts
@@ -83,29 +98,66 @@ minio-ratelimit/
 
 ## 🛠️ API Key Management
 
-### Add New API Key
+### Generate Real MinIO Service Accounts
 ```bash
-./manage-api-keys add-key "AKIA1234567890ABCDEF" "premium"
+# Creates 50 real MinIO accounts (12 premium, 20 standard, 18 basic)
+./generate-service-accounts.sh
 ```
 
-### Update API Key Group
+### Manage API Key Groups (Hot Reload)
 ```bash
-./manage-api-keys update-key "AKIA1234567890ABCDEF" "standard"
+# Add new API key to a group
+./manage-api-keys-dynamic add-key "AKIA1234567890ABCDEF" "premium"
+
+# Update existing API key group
+./manage-api-keys-dynamic update-key "AKIA1234567890ABCDEF" "standard"
+
+# Remove API key
+./manage-api-keys-dynamic remove-key "old-key"
+
+# List all API keys and their groups
+./manage-api-keys-dynamic list-keys
+
+# Validate map file syntax
+./manage-api-keys-dynamic validate
 ```
 
-### Remove API Key
+## 🗂️ Key Storage Locations
+
+### HAProxy Key Storage
+- **Location**: `./config/api_key_groups.map`
+- **Format**: Plain text map file `api_key group`
+- **Hot Reload**: Changes applied without HAProxy restart
+- **Usage**: HAProxy reads this file to determine API key groups
+
 ```bash
-./manage-api-keys remove-key "old-key"
+# Example content:
+8MM017JDSET5R6UDWBX7 premium
+SWLUAOPMZZX95L1NISBJ premium  
+VKDSOTX8Z4N50YU80PZZ standard
+6I6N84673IG51M2MWJ1R basic
+minioadmin premium
 ```
 
-### List All API Keys
-```bash
-./manage-api-keys list-keys
-```
+### Go Application Key Storage
+- **Location**: `./config/generated_service_accounts.json`
+- **Format**: JSON with full service account details
+- **Contents**: Access keys, secret keys, groups, policies, timestamps
+- **Usage**: Go applications load real MinIO credentials for testing
 
-### Restore from Backup
-```bash
-./manage-api-keys restore-backup api_keys_20250903_204740.json
+```json
+{
+  "service_accounts": [
+    {
+      "access_key": "8MM017JDSET5R6UDWBX7",
+      "secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+      "group": "premium",
+      "created": "2025-09-03T22:01:48+05:30",
+      "description": "Premium tier account 1/12",
+      "policy": "s3-full-access"
+    }
+  ]
+}
 ```
 
 ## 🚦 HAProxy Setup
@@ -145,21 +197,26 @@ X-Auth-Method: v2_header
 
 ## 🔧 Configuration
 
-### API Key Groups (`config/api_keys.json`)
-```json
-{
-  "AKIAIOSFODNN7EXAMPLE": "premium",
-  "test-standard-key": "standard",
-  "test-basic-key": "basic",
-  "client-alpha": "standard"
-}
+### Dynamic HAProxy Map File (`config/api_key_groups.map`)
+```bash
+# HAProxy Map File: API Key to Group Mapping
+# Format: api_key group
+# Generated: Wed  3 Sep 2025 22:01:48 IST
+# Total Keys: 50
+
+8MM017JDSET5R6UDWBX7 premium
+SWLUAOPMZZX95L1NISBJ premium
+VKDSOTX8Z4N50YU80PZZ standard
+3WW11ZZCBISMACLM0LUF standard
+6I6N84673IG51M2MWJ1R basic
+minioadmin premium
 ```
 
 ### HAProxy Integration
 The main configuration (`haproxy.cfg`) includes:
+- Dynamic map file system for hot reload
 - Multi-method API key extraction
-- Group-based rate limiting
-- Individual API key tracking
+- Group-based rate limiting with individual key tracking
 - S3-compatible error responses
 - Comprehensive logging and monitoring
 
@@ -192,35 +249,61 @@ The main configuration (`haproxy.cfg`) includes:
 
 ## 🧪 Testing
 
-### Comprehensive Go Test Suite (`test-suite.go`)
-The included test framework provides:
-- **Real AWS API Key Generation**: AKIA-format keys compatible with S3 auth
-- **Parallel Test Execution**: Concurrent requests across all rate limit groups
-- **SSL/TLS Testing**: HTTPS endpoint validation
-- **Statistics & Reporting**: Color-coded results with detailed metrics
-- **Authentication Method Testing**: All supported S3 auth patterns
-- **Rate Limit Validation**: Confirms individual API key tracking
-- **Performance Benchmarking**: Response time and throughput analysis
+### Comprehensive Go Test Suite
+Three specialized testing applications are available in the `cmd/` directory:
 
+#### 1. Comprehensive Test (`cmd/comprehensive-test/`)
+Multi-client testing with MinIO Go client, AWS S3 client, and raw HTTP API:
 ```bash
-# Run comprehensive tests
-go run test-suite.go
-
-# Example output:
-# ✅ Generated 12 AWS-compatible API keys
-# ✅ Testing Premium group (1000 req/min)
-# ✅ Testing Standard group (500 req/min) 
-# ✅ Testing Basic group (100 req/min)
-# 📊 Final Statistics: 98.5% success rate, avg 15ms response time
+cd cmd/comprehensive-test
+go run main.go
 ```
+- **Real Service Accounts**: Uses all 50 generated MinIO accounts
+- **Multiple Auth Methods**: Tests AWS Signature V2, V4, and HTTP API
+- **Parallel Execution**: Concurrent testing across all tiers
+- **Detailed Statistics**: Success rates, latency, rate limiting effectiveness
+
+#### 2. Load Test (`cmd/load-test/`)
+Concurrent load testing with up to 18 clients:
+```bash
+cd cmd/load-test
+go run main.go
+```
+- **Concurrent Clients**: 4 premium, 8 standard, 6 basic accounts
+- **2-minute Load Test**: Sustained concurrent requests
+- **Performance Metrics**: RPS, latency, success rates per group
+- **Rate Limiting Analysis**: Validates individual key tracking under load
+
+#### 3. Rate Diagnostic (`cmd/rate-diagnostic/`)
+Individual API key behavior analysis:
+```bash
+cd cmd/rate-diagnostic
+go run main.go
+```
+- **Individual Testing**: Tests sample accounts from each tier
+- **Rate Limit Headers**: Validates HAProxy response headers
+- **Burst Testing**: Rapid requests to test burst limits
+- **Diagnostic Analysis**: Real-time rate limiting behavior
 
 ## 🔄 Hot Reload Process
 
-1. **Configuration Update**: Modify `config/api_keys.json`
+1. **Configuration Update**: Modify `config/api_key_groups.map`
 2. **Automatic Backup**: Previous config saved to `config/backups/`
-3. **Validation**: JSON syntax verification
-4. **Hot Reload**: Changes applied without restart
-5. **Confirmation**: New limits effective within 30 seconds
+3. **Validation**: Map file syntax verification  
+4. **HAProxy Reload**: `haproxy -f haproxy.cfg -sf $(pidof haproxy)`
+5. **Confirmation**: New API key mappings effective within 30 seconds
+
+### Manual Hot Reload Commands
+```bash
+# Reload HAProxy configuration
+./manage-api-keys-dynamic reload
+
+# Add key and auto-reload
+./manage-api-keys-dynamic add-key "NEWKEY123" "premium"
+
+# Validate map file
+./manage-api-keys-dynamic validate
+```
 
 ## 🐳 Deployment
 
