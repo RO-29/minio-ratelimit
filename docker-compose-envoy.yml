@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # Envoy Proxy Alternative (more advanced rate limiting)
+  envoy1:
+    image: envoyproxy/envoy:v1.28-latest
+    container_name: envoy1
+    ports:
+      - "10000:10000"  # Main proxy port
+      - "9901:9901"    # Admin interface
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    networks:
+      - minio-network
+    depends_on:
+      - minio1
+      - minio2
+    restart: unless-stopped
+    command: ["/usr/local/bin/envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info"]
+
+  # Second Envoy instance for high availability  
+  envoy2:
+    image: envoyproxy/envoy:v1.28-latest
+    container_name: envoy2
+    ports:
+      - "10001:10000"  # Main proxy port
+      - "9902:9901"    # Admin interface
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    networks:
+      - minio-network
+    depends_on:
+      - minio1
+      - minio2  
+    restart: unless-stopped
+    command: ["/usr/local/bin/envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info"]
+
+  # MinIO Server 1
+  minio1:
+    image: minio/minio:latest
+    container_name: minio1
+    ports:
+      - "9001:9000"
+      - "9011:9001"
+    volumes:
+      - minio1-data:/data
+    networks:
+      - minio-network
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin123
+      - MINIO_SERVER_URL=http://minio1:9000
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # MinIO Server 2
+  minio2:
+    image: minio/minio:latest
+    container_name: minio2
+    ports:
+      - "9002:9000"
+      - "9012:9001"
+    volumes:
+      - minio2-data:/data
+    networks:
+      - minio-network
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin123
+      - MINIO_SERVER_URL=http://minio2:9000
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Rate limit monitoring and metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - minio-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+volumes:
+  minio1-data:
+  minio2-data:
+
+networks:
+  minio-network:
+    driver: bridge

@@ -1,0 +1,31 @@
+# Prometheus configuration for monitoring rate limiting
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # HAProxy metrics
+  - job_name: 'haproxy'
+    static_configs:
+      - targets: ['haproxy1:8404', 'haproxy2:8405']
+    metrics_path: '/stats/prometheus'
+    scrape_interval: 10s
+
+  # Envoy metrics  
+  - job_name: 'envoy'
+    static_configs:
+      - targets: ['envoy1:9901', 'envoy2:9902']
+    metrics_path: '/stats/prometheus'
+    scrape_interval: 10s
+
+  # MinIO metrics
+  - job_name: 'minio'
+    metrics_path: /minio/v2/metrics/cluster
+    static_configs:
+      - targets: ['minio1:9000', 'minio2:9000']
+    scrape_interval: 30s
