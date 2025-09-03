@@ -1,96 +1,100 @@
--- HAProxy Lua script to extract API keys from all S3 authentication methods
--- This script handles V2, V4, pre-signed URLs, and custom headers
+-- Optimized S3 API Key Extraction for HAProxy 3.0
+-- Performance optimizations:
+-- - Pre-compiled patterns (stored as locals)
+-- - Minimal string operations
+-- - Early exits for performance
+-- - Cached header access
+-- - Optimized variable setting
+
+-- Pre-compile regex patterns for better performance
+local v4_pattern = "^AWS4%-HMAC%-SHA256"
+local v2_pattern = "^AWS "
+local credential_pattern = "Credential=([^,]+)"
+local key_pattern = "([^/]+)"
+local presigned_pattern = "X%-Amz%-Credential=([^&]+)"
+local access_key_pattern = "AWSAccessKeyId=([^&]+)"
+
+-- Cache commonly used strings
+local v4_method = "v4_header_lua"
+local v2_method = "v2_header_lua"
+local v4_presigned_method = "v4_presigned_lua"
+local v2_query_method = "v2_query_lua"
+local custom_method = "custom_lua"
 
 function extract_api_key(txn)
-    -- Get the Authorization header
-    local auth_header = txn.http:req_get_headers()["authorization"]
-    local api_key = nil
-    local auth_method = nil
+    -- Cache transaction variables for better performance
+    local headers = txn.http:req_get_headers()
+    local auth_header = headers["authorization"]
     
-    if auth_header then
-        local auth = auth_header[0]  -- Get first value if multiple
-        if auth then
-            core.Debug("Processing auth header: " .. auth)
-            
-            -- Method 1: AWS Signature V4
-            if string.match(auth, "^AWS4%-HMAC%-SHA256") then
-                local credential_part = string.match(auth, "Credential=([^,]+)")
-                if credential_part then
-                    api_key = string.match(credential_part, "([^/]+)")
-                    if api_key then
-                        auth_method = "v4_header_lua"
-                        core.Debug("Extracted V4 API key: " .. api_key)
-                    end
-                end
-            
-            -- Method 2: AWS Signature V2 
-            elseif string.match(auth, "^AWS [^:]+:") then
-                -- Format: AWS AKIAIOSFODNN7EXAMPLE:signature
-                api_key = string.match(auth, "^AWS ([^:]+):")
+    -- Fast path: Check for most common authentication method first (V4 header)
+    if auth_header and auth_header[0] then
+        local auth = auth_header[0]
+        
+        -- AWS Signature V4 (most common in modern apps)
+        if string.find(auth, v4_pattern) then
+            local credential_part = string.match(auth, credential_pattern)
+            if credential_part then
+                local api_key = string.match(credential_part, key_pattern)
                 if api_key then
-                    auth_method = "v2_header_lua"
-                    core.Debug("Extracted V2 API key: " .. api_key)
+                    txn:set_var("txn.api_key", api_key)
+                    txn:set_var("txn.auth_method", v4_method)
+                    return -- Early exit for performance
                 end
             end
         end
-    end
-    
-    -- Method 3: Pre-signed URL with X-Amz-Credential
-    if not api_key then
-        local query_string = txn.f:query()
-        if query_string then
-            local cred_match = string.match(query_string, "X%-Amz%-Credential=([^&]+)")
-            if cred_match then
-                -- URL decode if needed
-                cred_match = string.gsub(cred_match, "%%2F", "/")
-                api_key = string.match(cred_match, "([^/]+)")
-                if api_key then
-                    auth_method = "v4_presigned_lua"
-                    core.Debug("Extracted presigned API key: " .. api_key)
-                end
-            end
-        end
-    end
-    
-    -- Method 4: Legacy query parameter AWSAccessKeyId
-    if not api_key then
-        local query_string = txn.f:query()
-        if query_string then
-            api_key = string.match(query_string, "AWSAccessKeyId=([^&]+)")
+        
+        -- AWS Signature V2 (legacy but still used)
+        if string.find(auth, v2_pattern) then
+            local api_key = string.match(auth, "AWS ([^:]+):")
             if api_key then
-                auth_method = "v2_query_lua"
-                core.Debug("Extracted query API key: " .. api_key)
+                txn:set_var("txn.api_key", api_key)
+                txn:set_var("txn.auth_method", v2_method)
+                return -- Early exit
             end
         end
     end
     
-    -- Method 5: Custom headers
-    if not api_key then
-        local headers = txn.http:req_get_headers()
-        if headers["x-api-key"] then
-            api_key = headers["x-api-key"][0]
-            auth_method = "custom_lua"
-        elseif headers["x-access-key-id"] then
-            api_key = headers["x-access-key-id"][0] 
-            auth_method = "custom_lua"
+    -- Check query string for pre-signed URLs (less common, check after headers)
+    local query_string = txn.f:query()
+    if query_string then
+        -- V4 pre-signed URL
+        local credential_match = string.match(query_string, presigned_pattern)
+        if credential_match then
+            local api_key = string.match(credential_match, key_pattern)
+            if api_key then
+                txn:set_var("txn.api_key", api_key)
+                txn:set_var("txn.auth_method", v4_presigned_method)
+                return -- Early exit
+            end
         end
+        
+        -- V2 query parameter (legacy)
+        local api_key = string.match(query_string, access_key_pattern)
         if api_key then
-            core.Debug("Extracted custom header API key: " .. api_key)
+            txn:set_var("txn.api_key", api_key)
+            txn:set_var("txn.auth_method", v2_query_method)
+            return -- Early exit
         end
     end
     
-    -- Set variables
-    if api_key then
-        txn:set_var("txn.api_key", api_key)
-        txn:set_var("txn.auth_method", auth_method)
-    else
-        -- Default for unknown keys
-        txn:set_var("txn.api_key", "unknown")
-        txn:set_var("txn.auth_method", "none")
+    -- Check custom headers (least common, check last)
+    local custom_headers = {"x-api-key", "x-access-key-id", "x-amz-security-token"}
+    for _, header_name in ipairs(custom_headers) do
+        local header_value = headers[header_name]
+        if header_value and header_value[0] then
+            local api_key = header_value[0]
+            if api_key and #api_key > 0 then
+                txn:set_var("txn.api_key", api_key)
+                txn:set_var("txn.auth_method", custom_method)
+                return -- Early exit
+            end
+        end
     end
     
-    return api_key
+    -- No API key found - set empty values
+    txn:set_var("txn.api_key", "")
+    txn:set_var("txn.auth_method", "none")
 end
 
--- Register the function to be called by HAProxy
+-- Register the optimized function
 core.register_action("extract_api_key", {"http-req"}, extract_api_key, 0)

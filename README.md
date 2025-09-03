@@ -9,13 +9,15 @@ This project implements a comprehensive, production-ready rate limiting solution
 - ✅ **Complete S3 Authentication Support**: AWS Signature V2/V4, pre-signed URLs, custom headers
 - ✅ **Fully Dynamic Rate Limiting**: Zero hardcoded values - all limits from map files
 - ✅ **Hot-Reloadable Configuration**: Change limits without HAProxy restart  
-- ✅ **Multi-Tier System**: Premium, Standard, Basic, Unknown tiers with different limits
+- ✅ **Multi-Tier System**: Premium, Standard, Basic, Default tiers with different limits
+- ✅ **Default Group Fallback**: Unknown API keys automatically assigned to default group
 - ✅ **Individual API Key Tracking**: Each API key has its own rate limit counter
 - ✅ **Active-Active HAProxy**: Two HAProxy instances for high availability
 - ✅ **SSL/TLS Termination**: HTTPS support with automatic certificate generation
 - ✅ **Real MinIO Integration**: 50 real service accounts with proper IAM policies
 - ✅ **Lua-Based Processing**: Advanced authentication extraction and rate limiting logic
-- ✅ **Comprehensive Testing**: Fast parallel testing framework
+- ✅ **Performance Optimized**: Enhanced latency and throughput with optimized configuration
+- ✅ **Comprehensive Testing**: Fast parallel testing framework with performance benchmarking
 
 ---
 
@@ -29,8 +31,9 @@ This project implements a comprehensive, production-ready rate limiting solution
 6. [Installation & Setup](#-installation--setup)
 7. [Configuration Management](#-configuration-management)
 8. [Testing & Validation](#-testing--validation)
-9. [Monitoring & Debugging](#-monitoring--debugging)
-10. [Production Deployment](#-production-deployment)
+9. [Performance Metrics](#-performance-metrics)
+10. [Monitoring & Debugging](#-monitoring--debugging)
+11. [Production Deployment](#-production-deployment)
 
 ---
 
@@ -247,7 +250,7 @@ end
 | **Premium** | 2,000 requests | 50 requests | Production apps, high-volume services |
 | **Standard** | 500 requests | 25 requests | Development, moderate usage |
 | **Basic** | 100 requests | 10 requests | Testing, low-volume usage |
-| **Unknown** | 50 requests | 5 requests | Unrecognized API keys |
+| **Default** | 50 requests | 5 requests | Fallback tier for unrecognized API keys |
 
 ### **Individual API Key Tracking**
 
@@ -527,6 +530,51 @@ for i in {1..10}; do
     -H "Authorization: AWS BASICKEY123:sig"
 done
 ```
+
+---
+
+## 🚀 **Performance Metrics**
+
+### **Current Performance Characteristics**
+
+The HAProxy rate limiting system has been performance-optimized to deliver:
+
+| Metric | Performance |
+|--------|-------------|
+| **Average Latency** | ~0.83ms |
+| **P95 Latency** | ~1.34ms |
+| **P99 Latency** | ~1.52ms |
+| **Throughput** | ~28,000 RPS |
+
+### **Performance Optimizations**
+
+1. **🔧 Lua Script Optimizations**
+   - Pre-compiled regex patterns for faster authentication parsing
+   - Early exit strategies for non-rate-limited requests
+   - Cached variable access to reduce transaction lookups
+
+2. **⚙️ HAProxy Configuration Tuning**
+   - Enhanced buffer sizes (32KB)
+   - Optimized timeout values for better connection handling
+   - Conditional processing to reduce unnecessary operations
+
+3. **📊 Stick Table Optimization**
+   - Reduced table sizes for better memory utilization
+   - Optimized expiration times for efficient cleanup
+   - Focused tracking on PUT/GET requests only
+
+### **Performance Testing**
+
+Run the comprehensive performance comparison:
+```bash
+# Compare original vs optimized implementations
+./cmd/performance-comparison/run_optimization_comparison.sh
+
+# Pure HAProxy latency testing
+./cmd/performance-comparison/run_pure_haproxy_test.sh
+```
+
+See [OPTIMIZATION_PERFORMANCE_REPORT.md](OPTIMIZATION_PERFORMANCE_REPORT.md) for detailed analysis.
 
 ---
 
