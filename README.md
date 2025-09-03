@@ -430,25 +430,31 @@ curl -I http://localhost/test-bucket/ \
 
 ### **Dynamic Configuration Updates**
 
-**Zero Downtime Configuration Changes** - All limits changeable without HAProxy restart:
+**Complete Command Reference** - All limits changeable without HAProxy restart:
 
 ```bash
-# Show current system status
-./manage-dynamic-limits show-stats
+# === API Key Management ===
+./manage-dynamic-limits add-key MYKEY123 premium           # Add new key to group
+./manage-dynamic-limits remove-key MYKEY123                # Remove API key
+./manage-dynamic-limits update-key MYKEY123 standard       # Change key's group
+./manage-dynamic-limits list-keys                          # List all API keys
 
-# Add new API key to group
-./manage-dynamic-limits add-key MYKEY123 premium
+# === Rate Limit Management ===
+./manage-dynamic-limits set-minute-limit premium 3000     # Set per-minute limit
+./manage-dynamic-limits set-second-limit premium 75       # Set per-second limit
+./manage-dynamic-limits get-limits premium                # Get limits for group
+./manage-dynamic-limits list-all-limits                   # List all rate limits
 
-# Change rate limits dynamically
-./manage-dynamic-limits set-minute-limit premium 3000
-./manage-dynamic-limits set-second-limit premium 75
+# === Error Message Management ===
+./manage-dynamic-limits set-error-msg premium "Premium_account_exceeded"  # Custom error
+./manage-dynamic-limits get-error-msg premium                             # Get error message
 
-# Get current limits for verification
-./manage-dynamic-limits get-limits premium
-# Output: Per-minute limit: 3000, Per-second limit: 75
-
-# List all current configurations
-./manage-dynamic-limits list-all-limits
+# === System Management ===
+./manage-dynamic-limits show-stats                        # System status overview
+./manage-dynamic-limits validate                          # Validate all map files
+./manage-dynamic-limits backup                           # Create configuration backup
+./manage-dynamic-limits restore 20240903_143022          # Restore from backup
+./manage-dynamic-limits reload                           # Hot reload HAProxy
 ```
 
 ### **Map File Management**
@@ -456,7 +462,7 @@ curl -I http://localhost/test-bucket/ \
 Map files are automatically updated by management scripts, but can be manually edited:
 
 1. **Edit map file**: `vim config/api_key_groups.map`  
-2. **Hot reload**: `./manage-dynamic-limits reload-config`
+2. **Hot reload**: `./manage-dynamic-limits reload`
 3. **Verify**: Check HAProxy logs for reload confirmation
 
 ---

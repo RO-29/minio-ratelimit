@@ -616,13 +616,19 @@ local error_xml = string.format(
 
 #### **Layer 4: Hot Reload Management**
 ```bash
-# Management script provides zero-downtime updates
+# Complete management script with all commands implemented
 ./manage-dynamic-limits set-minute-limit premium 3000
-# 1. Updates map file
-# 2. Creates backup  
+# 1. Automatic backup creation
+# 2. Updates map file atomically  
 # 3. Hot reloads HAProxy via socket API
 # 4. Validates changes
-# 5. No service interruption
+# 5. Zero service interruption
+
+# Complete command set available:
+# API Key Management: add-key, remove-key, update-key, list-keys
+# Rate Limits: set-minute-limit, set-second-limit, get-limits, list-all-limits  
+# Error Messages: set-error-msg, get-error-msg
+# System: show-stats, validate, backup, restore, reload
 ```
 
 ### **Configuration Change Flow**
@@ -1201,6 +1207,97 @@ http-response set-header X-Frame-Options DENY
 http-response set-header X-XSS-Protection "1; mode=block"
 http-response set-header Referrer-Policy "strict-origin-when-cross-origin"
 ```
+
+---
+
+## Complete Management Script Reference
+
+### 🛠️ **All Commands Implemented**
+
+The `manage-dynamic-limits` script provides comprehensive configuration management:
+
+#### **API Key Management Commands**
+```bash
+# Add new API key to rate limiting group
+./manage-dynamic-limits add-key ACCESS_KEY_123 premium
+
+# Remove API key completely
+./manage-dynamic-limits remove-key ACCESS_KEY_123
+
+# Update existing key's group assignment
+./manage-dynamic-limits update-key ACCESS_KEY_123 standard
+
+# List all API keys with their groups
+./manage-dynamic-limits list-keys
+```
+
+#### **Rate Limit Management Commands**
+```bash
+# Set per-minute rate limit for group
+./manage-dynamic-limits set-minute-limit premium 5000
+
+# Set per-second burst limit for group  
+./manage-dynamic-limits set-second-limit premium 100
+
+# Get current limits for specific group
+./manage-dynamic-limits get-limits premium
+
+# List all rate limits across all groups
+./manage-dynamic-limits list-all-limits
+```
+
+#### **Error Message Management Commands**
+```bash
+# Set custom error message for rate limit denials
+./manage-dynamic-limits set-error-msg premium "Premium_tier_exceeded_contact_support"
+
+# Get current error message for group
+./manage-dynamic-limits get-error-msg premium
+```
+
+#### **System Management Commands**
+```bash
+# Show comprehensive system status
+./manage-dynamic-limits show-stats
+
+# Validate all map file syntax  
+./manage-dynamic-limits validate
+
+# Create backup of current configuration
+./manage-dynamic-limits backup
+
+# Restore from specific backup (shows available backups if no date provided)
+./manage-dynamic-limits restore 20240903_143022
+
+# Hot reload HAProxy configuration
+./manage-dynamic-limits reload
+```
+
+### 🔄 **Command Workflow Features**
+
+#### **Automatic Backup System**
+- Every destructive command creates automatic backup
+- Backups timestamped with `YYYYMMDD_HHMMSS` format
+- Restore command lists available backups
+- All map files backed up atomically
+
+#### **Hot Reload Integration**
+- All configuration changes trigger automatic HAProxy reload
+- Uses HAProxy socket API for zero-downtime reloads  
+- Falls back to container restart if socket reload fails
+- Validates configuration before applying
+
+#### **Input Validation**
+- All commands validate input parameters
+- Rate limits must be numeric
+- API keys checked for existence before operations
+- Map file syntax validated before reload
+
+#### **Error Handling**
+- Comprehensive error messages with usage examples
+- Automatic rollback on configuration validation failures
+- Safe temporary file handling for atomic updates
+- Docker container detection and management
 
 ---
 

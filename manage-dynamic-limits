@@ -240,6 +240,173 @@ add_api_key() {
     reload_haproxy
 }
 
+remove_api_key() {
+    local key="$1"
+    
+    if [ -z "$key" ]; then
+        echo -e "${RED}❌ Usage: remove-key <key>${NC}"
+        return 1
+    fi
+    
+    if ! grep -q "^$key " "$API_GROUPS_MAP" 2>/dev/null; then
+        echo -e "${RED}❌ API key not found: $key${NC}"
+        return 1
+    fi
+    
+    backup_configs
+    
+    # Remove the key
+    grep -v "^$key " "$API_GROUPS_MAP" > "$API_GROUPS_MAP.tmp" && mv "$API_GROUPS_MAP.tmp" "$API_GROUPS_MAP"
+    
+    echo -e "${GREEN}✅ API key removed: $key${NC}"
+    reload_haproxy
+}
+
+update_api_key() {
+    local key="$1"
+    local new_group="$2"
+    
+    if [ -z "$key" ] || [ -z "$new_group" ]; then
+        echo -e "${RED}❌ Usage: update-key <key> <new_group>${NC}"
+        return 1
+    fi
+    
+    if ! grep -q "^$key " "$API_GROUPS_MAP" 2>/dev/null; then
+        echo -e "${RED}❌ API key not found: $key${NC}"
+        return 1
+    fi
+    
+    local old_group=$(grep "^$key " "$API_GROUPS_MAP" | awk '{print $2}')
+    
+    backup_configs
+    
+    # Update the key's group
+    sed -i.bak "s/^$key .*/$key $new_group/" "$API_GROUPS_MAP"
+    
+    echo -e "${GREEN}✅ API key $key updated: $old_group → $new_group${NC}"
+    reload_haproxy
+}
+
+list_api_keys() {
+    if [ ! -f "$API_GROUPS_MAP" ]; then
+        echo -e "${RED}❌ No API keys file found${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}All API Keys${NC}"
+    echo "============"
+    
+    printf "%-25s %-15s\n" "API KEY" "GROUP"
+    printf "%-25s %-15s\n" "-------" "-----"
+    
+    grep -v '^#' "$API_GROUPS_MAP" 2>/dev/null | sort -k2,2 -k1,1 | while read key group; do
+        printf "%-25s %-15s\n" "$key" "$group"
+    done
+    
+    echo ""
+    echo -e "${BLUE}Summary:${NC}"
+    grep -v '^#' "$API_GROUPS_MAP" 2>/dev/null | awk '{print $2}' | sort | uniq -c | while read count group; do
+        echo "  $group: $count keys"
+    done
+}
+
+set_error_message() {
+    local group="$1"
+    local message="$2"
+    
+    if [ -z "$group" ] || [ -z "$message" ]; then
+        echo -e "${RED}❌ Usage: set-error-msg <group> <message>${NC}"
+        return 1
+    fi
+    
+    backup_configs
+    
+    # Update or add the error message
+    if grep -q "^$group " "$ERROR_MESSAGES_MAP" 2>/dev/null; then
+        sed -i.bak "s/^$group .*/$group $message/" "$ERROR_MESSAGES_MAP"
+        echo -e "${GREEN}✅ Updated error message for $group${NC}"
+    else
+        echo "$group $message" >> "$ERROR_MESSAGES_MAP"
+        echo -e "${GREEN}✅ Added error message for $group${NC}"
+    fi
+    
+    reload_haproxy
+}
+
+get_error_message() {
+    local group="$1"
+    
+    if [ -z "$group" ]; then
+        echo -e "${RED}❌ Usage: get-error-msg <group>${NC}"
+        return 1
+    fi
+    
+    local error_msg=$(grep "^$group " "$ERROR_MESSAGES_MAP" 2>/dev/null | cut -d' ' -f2-)
+    
+    if [ -n "$error_msg" ]; then
+        echo -e "${BLUE}Error message for group '$group':${NC}"
+        echo "  $error_msg"
+    else
+        echo -e "${YELLOW}⚠️ No custom error message set for group: $group${NC}"
+        echo "  (Will use default: Rate_limit_exceeded)"
+    fi
+}
+
+restore_backup() {
+    local backup_date="$1"
+    
+    if [ -z "$backup_date" ]; then
+        echo -e "${RED}❌ Usage: restore <backup_date>${NC}"
+        echo -e "${BLUE}Available backups:${NC}"
+        ls -1 "$BACKUP_DIR" | grep -E "_[0-9]{8}_[0-9]{6}_" | sed 's/dynamic_config_\([0-9_]*\)_.*/\1/' | sort -u
+        return 1
+    fi
+    
+    local backup_files=$(ls "$BACKUP_DIR"/dynamic_config_${backup_date}_*.map 2>/dev/null)
+    
+    if [ -z "$backup_files" ]; then
+        echo -e "${RED}❌ No backup found for date: $backup_date${NC}"
+        return 1
+    fi
+    
+    echo -e "${YELLOW}Restoring configuration from backup: $backup_date${NC}"
+    
+    # Create current backup before restoring
+    backup_configs
+    
+    # Restore each file
+    for backup_file in $backup_files; do
+        local basename=$(basename "$backup_file")
+        case "$basename" in
+            *_api_groups.map)
+                cp "$backup_file" "$API_GROUPS_MAP"
+                echo -e "${GREEN}✅ Restored API groups${NC}"
+                ;;
+            *_minute_limits.map)
+                cp "$backup_file" "$MINUTE_LIMITS_MAP"
+                echo -e "${GREEN}✅ Restored minute limits${NC}"
+                ;;
+            *_second_limits.map)
+                cp "$backup_file" "$SECOND_LIMITS_MAP"
+                echo -e "${GREEN}✅ Restored second limits${NC}"
+                ;;
+            *_error_messages.map)
+                cp "$backup_file" "$ERROR_MESSAGES_MAP"
+                echo -e "${GREEN}✅ Restored error messages${NC}"
+                ;;
+        esac
+    done
+    
+    echo -e "${YELLOW}Validating restored configuration...${NC}"
+    if validate_map_files; then
+        reload_haproxy
+        echo -e "${GREEN}✅ Configuration restored successfully${NC}"
+    else
+        echo -e "${RED}❌ Restored configuration has errors${NC}"
+        return 1
+    fi
+}
+
 show_stats() {
     echo -e "${BLUE}Dynamic Rate Limiting System Status${NC}"
     echo "==================================="
@@ -272,6 +439,15 @@ case "$1" in
     "add-key")
         add_api_key "$2" "$3"
         ;;
+    "remove-key")
+        remove_api_key "$2"
+        ;;
+    "update-key")
+        update_api_key "$2" "$3"
+        ;;
+    "list-keys")
+        list_api_keys
+        ;;
     "set-minute-limit")
         set_minute_limit "$2" "$3"
         ;;
@@ -284,6 +460,12 @@ case "$1" in
     "list-all-limits")
         list_all_limits
         ;;
+    "set-error-msg")
+        set_error_message "$2" "$3"
+        ;;
+    "get-error-msg")
+        get_error_message "$2"
+        ;;
     "reload")
         reload_haproxy
         ;;
@@ -292,6 +474,9 @@ case "$1" in
         ;;
     "backup")
         backup_configs
+        ;;
+    "restore")
+        restore_backup "$2"
         ;;
     "show-stats")
         show_stats
