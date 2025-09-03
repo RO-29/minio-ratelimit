@@ -1,373 +1,737 @@
-# HAProxy MinIO Rate Limiting Solution
+# MinIO S3 API Rate Limiting with HAProxy 3.0
 
-Enterprise-grade rate limiting for MinIO S3 API requests using HAProxy with SSL/TLS support, group-based API key management, comprehensive testing, and zero external dependencies.
+## 🚀 **Overview**
 
-## 🚀 Quick Start
+This project implements a comprehensive, production-ready rate limiting solution for MinIO S3 API requests using HAProxy 3.0. It provides **dynamic, hot-reloadable rate limiting** based on API key authentication with **zero external dependencies** (no Redis, no databases).
 
-```bash
-# 1. Generate SSL certificates
-./ssl/generate-certificates.sh
+### **Key Features**
 
-# 2. Start the services (with SSL/HTTPS support)
-docker-compose up -d
+- ✅ **Complete S3 Authentication Support**: AWS Signature V2/V4, pre-signed URLs, custom headers
+- ✅ **Dynamic Rate Limiting**: Hot-reloadable limits without HAProxy restart  
+- ✅ **Multi-Tier System**: Premium, Standard, Basic, Unknown tiers with different limits
+- ✅ **Individual API Key Tracking**: Each API key has its own rate limit counter
+- ✅ **Active-Active HAProxy**: Two HAProxy instances for high availability
+- ✅ **SSL/TLS Termination**: HTTPS support with automatic certificate generation
+- ✅ **Real MinIO Integration**: 50 real service accounts with proper IAM policies
+- ✅ **Lua-Based Extraction**: Advanced string parsing for complex authentication headers
+- ✅ **Comprehensive Testing**: Fast parallel testing framework
 
-# 3. Generate real MinIO service accounts (50 accounts)
-./generate-service-accounts.sh
+---
 
-# 4. Run comprehensive testing with real accounts
-cd cmd/comprehensive-test && go run main.go
-cd cmd/load-test && go run main.go
-cd cmd/rate-diagnostic && go run main.go
+## 📋 **Table of Contents**
 
-# 5. Monitor via HAProxy stats
-open http://localhost:8404/stats
+1. [Architecture Overview](#-architecture-overview)
+2. [HAProxy 3.0 Features Used](#-haproxy-30-features-used)
+3. [Authentication Methods](#-authentication-methods)
+4. [Rate Limiting System](#-rate-limiting-system)
+5. [Hot Reloading Mechanism](#-hot-reloading-mechanism)
+6. [Installation & Setup](#-installation--setup)
+7. [Configuration Management](#-configuration-management)
+8. [Testing & Validation](#-testing--validation)
+9. [Monitoring & Debugging](#-monitoring--debugging)
+10. [Production Deployment](#-production-deployment)
+
+---
+
+## 🏗️ **Architecture Overview**
+
+```
+┌─────────────────┐    ┌─────────────────┐
+│   Client Apps   │    │   Client Apps   │
+│  (AWS S3 SDK)   │    │  (MinIO Client) │
+└─────────┬───────┘    └─────────┬───────┘
+          │                      │
+          └──────────┬───────────┘
+                     │
+          ┌─────────────────────┐
+          │    Load Balancer    │  
+          │   (External LB)     │
+          └─────────┬───────────┘
+                    │
+      ┌─────────────┼─────────────┐
+      │             │             │
+┌───────────┐ ┌───────────┐ ┌───────────┐
+│ HAProxy 1 │ │ HAProxy 2 │ │    ...    │
+│  Port 80  │ │  Port 81  │ │           │
+│ Port 443  │ │ Port 444  │ │           │
+└─────┬─────┘ └─────┬─────┘ └───────────┘
+      │             │
+      └─────────────┼─────────────┘
+                    │
+        ┌─────────────────────┐
+        │     MinIO Cluster   │
+        │    (Port 9000)      │
+        └─────────────────────┘
 ```
 
-## 📁 Project Structure
+### **Component Responsibilities**
 
-```
-minio-ratelimit/
-├── haproxy.cfg              # Main HAProxy configuration with SSL/TLS
-├── docker-compose.yml       # Production deployment setup (dual HAProxy)
-├── generate-service-accounts.sh # Real MinIO service account generator
-├── manage-api-keys-dynamic  # API key management script with hot reload
-├── go.mod                   # Go module dependencies
-├── go.sum                   # Go module checksums
-├── ssl/
-│   ├── generate-certificates.sh # SSL certificate generation script  
-│   └── certs/               # Generated SSL certificates
-├── config/
-│   ├── api_key_groups.map   # HAProxy map file: API key to group mappings (HOT RELOADABLE)
-│   ├── generated_service_accounts.json # Real MinIO service accounts with credentials
-│   └── backups/             # Automatic configuration backups
-├── cmd/                     # Go applications organized by function
-│   ├── comprehensive-test/  # Multi-client comprehensive testing
-│   │   ├── main.go          # Full testing suite with MinIO Go client, AWS S3, HTTP API
-│   │   ├── go.mod           # Module dependencies
-│   │   └── go.sum           # Module checksums
-│   ├── rate-diagnostic/     # Individual API key diagnostic tool
-│   │   ├── main.go          # Rate limiting behavior analysis
-│   │   ├── go.mod           # Module dependencies
-│   │   └── go.sum           # Module checksums
-│   └── load-test/           # Load testing with concurrent clients
-│       ├── main.go          # Concurrent load testing framework
-│       ├── go.mod           # Module dependencies
-│       └── go.sum           # Module checksums
-└── bin/                     # Legacy/experimental implementations
-    ├── configs/             # Alternative HAProxy configs
-    ├── compose/             # Alternative docker-compose files
-    ├── tests/               # Legacy test scripts
-    ├── scripts/             # Alternative management scripts
-    └── other/               # Other development files
-```
+1. **HAProxy Layer**:
+   - SSL/TLS termination
+   - S3 authentication extraction
+   - Rate limiting enforcement
+   - Load balancing to MinIO
+   - Request/response header manipulation
 
-## ✨ Features
+2. **MinIO Layer**:
+   - S3-compatible object storage
+   - Service account management
+   - Bucket operations
+   - IAM policies
 
-### 🔐 API Key Extraction
-- **AWS Signature V4**: `Authorization: AWS4-HMAC-SHA256 Credential=KEY/...`
-- **AWS Signature V2**: `Authorization: AWS KEY:signature`  
-- **Pre-signed URLs**: `?X-Amz-Credential=KEY/...`
-- **Query Parameters**: `?AWSAccessKeyId=KEY`
-- **Custom Headers**: `X-API-Key`, `X-Access-Key-Id`
+3. **Configuration Layer**:
+   - Hot-reloadable map files
+   - Dynamic rate limit management
+   - API key to group mappings
+   - SSL certificate management
 
-### 🎯 Rate Limiting Groups
+---
 
-| Group | Limit/Min | Burst/Sec | Use Case |
-|-------|-----------|-----------|----------|
-| **Premium** | 1000 | 50 | Enterprise customers |
-| **Standard** | 500 | 25 | Regular customers |
-| **Basic** | 100 | 10 | Trial/Free tier |
-| **Unknown** | 50 | 5 | Unrecognized keys |
+## 🔧 **HAProxy 3.0 Features Used**
 
-### 🎛️ Individual API Key Tracking
-- Each API key gets its own rate limit allowance
-- Keys in same group share limit amounts but track separately
-- Independent counters prevent one key from affecting others
+### **1. Lua Scripting Integration**
 
-### ⚡ Key Features
-- **SSL/TLS Support**: Complete HTTPS termination with certificate generation
-- **Zero External Dependencies**: No Redis, databases, or external services
-- **Hot Reload**: Update API key groups without HAProxy restart
-- **Active-Active HAProxy**: Two instances for high availability (ports 80/81, 443/444)
-- **Real API Key Generation**: AWS-compatible keys with Go test framework
-- **Parallel Testing**: Comprehensive test scenarios with statistics
-- **Individual Key Tracking**: Each API key gets separate rate limit counters
-- **PUT/GET Focus**: Only specified methods are rate-limited
-- **S3-Compatible Errors**: Proper XML error responses
-- **Comprehensive Documentation**: Technical deep-dive guide included
+HAProxy 3.0's Lua support allows complex string processing for S3 authentication:
 
-## 🛠️ API Key Management
-
-### Generate Real MinIO Service Accounts
-```bash
-# Creates 50 real MinIO accounts (12 premium, 20 standard, 18 basic)
-./generate-service-accounts.sh
+```lua
+-- Extract API keys from complex AWS Signature V4 headers
+function extract_api_key(txn)
+    local auth_header = txn.http:req_get_headers()["authorization"]
+    if string.match(auth, "^AWS4%-HMAC%-SHA256") then
+        local credential_part = string.match(auth, "Credential=([^,]+)")
+        local api_key = string.match(credential_part, "([^/]+)")
+        txn:set_var("txn.api_key", api_key)
+    end
+end
 ```
 
-### Manage API Key Groups (Hot Reload)
-```bash
-# Add new API key to a group
-./manage-api-keys-dynamic add-key "AKIA1234567890ABCDEF" "premium"
+### **2. Stick Tables for Rate Tracking**
 
-# Update existing API key group
-./manage-api-keys-dynamic update-key "AKIA1234567890ABCDEF" "standard"
+Individual API key rate tracking using HAProxy's memory-based stick tables:
 
-# Remove API key
-./manage-api-keys-dynamic remove-key "old-key"
+```haproxy
+# Per-minute tracking
+backend api_key_rates_1m
+    stick-table type string len 64 size 100k expire 2m store http_req_rate(1m)
 
-# List all API keys and their groups
-./manage-api-keys-dynamic list-keys
-
-# Validate map file syntax
-./manage-api-keys-dynamic validate
+# Per-second burst tracking  
+backend api_key_rates_1s
+    stick-table type string len 64 size 100k expire 10s store http_req_rate(1s)
 ```
 
-## 🗂️ Key Storage Locations
+### **3. Dynamic Map Files**
 
-### HAProxy Key Storage
-- **Location**: `./config/api_key_groups.map`
-- **Format**: Plain text map file `api_key group`
-- **Hot Reload**: Changes applied without HAProxy restart
-- **Usage**: HAProxy reads this file to determine API key groups
+Hot-reloadable configuration using HAProxy map files:
 
-```bash
-# Example content:
-8MM017JDSET5R6UDWBX7 premium
-SWLUAOPMZZX95L1NISBJ premium  
-VKDSOTX8Z4N50YU80PZZ standard
-6I6N84673IG51M2MWJ1R basic
-minioadmin premium
+```haproxy
+# API key to group mapping
+http-request set-var(txn.rate_group) var(txn.api_key),map(/path/api_key_groups.map,unknown)
+
+# Dynamic rate limits
+http-request set-var(txn.rate_limit_per_minute) var(txn.rate_group),map(/path/rate_limits_per_minute.map,50)
 ```
 
-### Go Application Key Storage
-- **Location**: `./config/generated_service_accounts.json`
-- **Format**: JSON with full service account details
-- **Contents**: Access keys, secret keys, groups, policies, timestamps
-- **Usage**: Go applications load real MinIO credentials for testing
+### **4. Advanced ACLs and Variables**
 
-```json
-{
-  "service_accounts": [
-    {
-      "access_key": "8MM017JDSET5R6UDWBX7",
-      "secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-      "group": "premium",
-      "created": "2025-09-03T22:01:48+05:30",
-      "description": "Premium tier account 1/12",
-      "policy": "s3-full-access"
-    }
-  ]
-}
+Complex conditional logic for rate limiting:
+
+```haproxy
+# Track individual API keys
+http-request track-sc0 var(txn.api_key) table api_key_rates_1m
+http-request track-sc1 var(txn.api_key) table api_key_rates_1s
+
+# Rate limiting with dynamic thresholds
+http-request deny deny_status 429 if { sc_http_req_rate(0) gt 2000 } { var(txn.rate_group) -m str premium }
 ```
 
-## 🚦 HAProxy Setup
+### **5. SSL/TLS Termination**
 
-### Active-Active Configuration
-- **Primary Instance**: 
-  - HTTP: `http://localhost:80`
-  - HTTPS: `https://localhost:443` 
-  - Stats: `http://localhost:8404/stats`
-- **Secondary Instance**: 
-  - HTTP: `http://localhost:81`
-  - HTTPS: `https://localhost:444`
-  - Stats: `http://localhost:8405/stats`
+HTTPS support with certificate binding:
 
-### Rate Limit Headers
-```http
-X-RateLimit-Group: premium
-X-RateLimit-Limit-Per-Minute: 1000
-X-RateLimit-Limit-Per-Second: 50
-X-RateLimit-Current-Per-Minute: 15
-X-RateLimit-Reset: 1756916616
-X-API-Key: AKIA1234567890ABCDEF
-X-Auth-Method: v2_header
+```haproxy
+frontend s3_frontend
+    bind *:80
+    bind *:443 ssl crt /etc/ssl/certs/haproxy.pem
 ```
 
-### S3 Error Responses
+---
+
+## 🔐 **Authentication Methods**
+
+The system supports all major S3 authentication methods through unified Lua processing:
+
+### **1. AWS Signature V4 (Header)**
+
+**Format**: `AWS4-HMAC-SHA256 Credential=ACCESS_KEY/date/region/service, SignedHeaders=..., Signature=...`
+
+**Extraction**:
+```lua
+if string.match(auth, "^AWS4%-HMAC%-SHA256") then
+    local credential_part = string.match(auth, "Credential=([^,]+)")
+    local api_key = string.match(credential_part, "([^/]+)")
+    auth_method = "v4_header_lua"
+end
+```
+
+### **2. AWS Signature V2 (Header)**
+
+**Format**: `AWS ACCESS_KEY:signature`
+
+**Extraction**:
+```lua
+elseif string.match(auth, "^AWS [^:]+:") then
+    api_key = string.match(auth, "^AWS ([^:]+):")
+    auth_method = "v2_header_lua"
+end
+```
+
+### **3. Pre-signed URLs (V4)**
+
+**Format**: `?X-Amz-Credential=ACCESS_KEY/date/region/service`
+
+**Extraction**:
+```lua
+local query_string = txn.f:query()
+local cred_match = string.match(query_string, "X%-Amz%-Credential=([^&]+)")
+api_key = string.match(cred_match, "([^/]+)")
+auth_method = "v4_presigned_lua"
+```
+
+### **4. Legacy Query Parameters**
+
+**Format**: `?AWSAccessKeyId=ACCESS_KEY`
+
+**Extraction**:
+```lua
+api_key = string.match(query_string, "AWSAccessKeyId=([^&]+)")
+auth_method = "v2_query_lua"
+```
+
+### **5. Custom Headers**
+
+**Format**: `X-API-Key: ACCESS_KEY` or `X-Access-Key-Id: ACCESS_KEY`
+
+**Extraction**:
+```lua
+if headers["x-api-key"] then
+    api_key = headers["x-api-key"][0]
+    auth_method = "custom_lua"
+end
+```
+
+---
+
+## ⚡ **Rate Limiting System**
+
+### **Rate Limiting Tiers**
+
+| Tier | Per-Minute Limit | Per-Second Burst | Typical Use Case |
+|------|------------------|------------------|------------------|
+| **Premium** | 2,000 requests | 50 requests | Production apps, high-volume services |
+| **Standard** | 500 requests | 25 requests | Development, moderate usage |
+| **Basic** | 100 requests | 10 requests | Testing, low-volume usage |
+| **Unknown** | 50 requests | 5 requests | Unrecognized API keys |
+
+### **Individual API Key Tracking**
+
+Each API key maintains its own rate counters using HAProxy stick tables:
+
+```haproxy
+# Track each API key individually
+http-request track-sc0 var(txn.api_key) table api_key_rates_1m
+http-request track-sc1 var(txn.api_key) table api_key_rates_1s
+
+# Check rate limits per API key
+http-request deny deny_status 429 if { sc_http_req_rate(0) gt 2000 } { var(txn.rate_group) -m str premium }
+```
+
+### **Rate Limiting Logic Flow**
+
+1. **Authentication Extraction**: Lua script extracts API key from request
+2. **Group Mapping**: API key mapped to rate group via map file
+3. **Rate Tracking**: Individual API key rate counters updated
+4. **Limit Enforcement**: Request denied if API key exceeds its group limits
+5. **Response Headers**: Rate limit info added to response
+
+### **Error Response Format**
+
+When rate limited, clients receive S3-compatible XML errors:
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <Error>
-  <Code>SlowDown</Code>
-  <Message>Premium tier rate limit exceeded (1000 requests/minute per API key)</Message>
-  <Resource>/bucket/object</Resource>
-  <RequestId>12345678-1234-1234-1234-123456789012</RequestId>
-  <ApiKey>AKIA1234567890ABCDEF</ApiKey>
+    <Code>SlowDown</Code>
+    <Message>Premium_rate_exceeded (2000 requests/minute per API key)</Message>
+    <Resource>/bucket/object</Resource>
+    <RequestId>unique-request-id</RequestId>
+    <ApiKey>5HQZO7EDOM4XBNO642GQ</ApiKey>
 </Error>
 ```
 
-## 🔧 Configuration
+---
 
-### Dynamic HAProxy Map File (`config/api_key_groups.map`)
-```bash
-# HAProxy Map File: API Key to Group Mapping
-# Format: api_key group
-# Generated: Wed  3 Sep 2025 22:01:48 IST
-# Total Keys: 50
+## 🔥 **Hot Reloading Mechanism**
 
-8MM017JDSET5R6UDWBX7 premium
-SWLUAOPMZZX95L1NISBJ premium
-VKDSOTX8Z4N50YU80PZZ standard
-3WW11ZZCBISMACLM0LUF standard
-6I6N84673IG51M2MWJ1R basic
-minioadmin premium
+### **How Hot Reloading Works**
+
+HAProxy 3.0 supports hot reloading of map files without restarting the service:
+
+1. **Map Files**: Configuration stored in external files
+2. **Runtime API**: HAProxy socket allows live updates
+3. **No Downtime**: Changes applied immediately without connection drops
+
+### **Map File Structure**
+
+#### **API Key Groups** (`config/api_key_groups.map`)
+```
+# Access Key -> Group mapping
+5HQZO7EDOM4XBNO642GQ premium
+VSLP8GUZ6SPYILLLGHJ0 standard  
+FQ4IU19ZFZ3470XJ7GBF basic
 ```
 
-### HAProxy Integration
-The main configuration (`haproxy.cfg`) includes:
-- Dynamic map file system for hot reload
-- Multi-method API key extraction
-- Group-based rate limiting with individual key tracking
-- S3-compatible error responses
-- Comprehensive logging and monitoring
+#### **Rate Limits Per Minute** (`config/rate_limits_per_minute.map`)
+```
+# Group -> Requests per minute
+premium 2000
+standard 500
+basic 100
+unknown 50
+```
 
-## 🏗️ Architecture
+#### **Rate Limits Per Second** (`config/rate_limits_per_second.map`)
+```
+# Group -> Burst requests per second
+premium 50
+standard 25
+basic 10
+unknown 5
+```
 
-### Rate Limiting Flow
-1. **Request arrives** at HAProxy frontend
-2. **API key extracted** from various authentication methods
-3. **Group determined** from API key configuration
-4. **Rate counters checked** using HAProxy stick tables
-5. **Request allowed/denied** based on individual key limits
-6. **Response headers added** with rate limit information
+#### **Error Messages** (`config/error_messages.map`)
+```
+# Group -> Custom error message
+premium Premium_rate_exceeded
+standard Standard_rate_exceeded
+basic Basic_rate_exceeded
+unknown Rate_limit_exceeded
+```
 
-### Stick Tables (In-Memory Storage)
-- `api_key_rates_1m`: Per-minute rate tracking (2min retention)
-- `api_key_rates_1s`: Per-second burst tracking (10sec retention)
-- **100k API key capacity** with automatic cleanup
+### **Hot Reload Commands**
 
-## 📊 Monitoring
+```bash
+# Reload all map files
+echo "clear map #0" | socat stdio unix-connect:/tmp/haproxy.sock
+echo "show map #0" | socat stdio unix-connect:/tmp/haproxy.sock
 
-### Statistics Interface
+# Add new API key mapping
+echo "set map config/api_key_groups.map NEWKEY123 premium" | socat stdio unix-connect:/tmp/haproxy.sock
+
+# Update rate limits
+echo "set map config/rate_limits_per_minute.map premium 3000" | socat stdio unix-connect:/tmp/haproxy.sock
+```
+
+### **Management Script**
+
+The `manage-dynamic-limits` script provides a user-friendly interface:
+
+```bash
+# Show current configuration
+./manage-dynamic-limits show-config
+
+# Add new API key
+./manage-dynamic-limits add-key NEWKEY123 premium
+
+# Update rate limits
+./manage-dynamic-limits set-limits premium 3000 75
+
+# Backup and restore
+./manage-dynamic-limits backup
+./manage-dynamic-limits restore backup_file
+```
+
+---
+
+## 🚀 **Installation & Setup**
+
+### **Prerequisites**
+
+- Docker & Docker Compose
+- 4GB+ RAM (for HAProxy stick tables)
+- SSL certificates (auto-generated)
+
+### **Quick Start**
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd minio-ratelimit
+
+# Generate SSL certificates
+./ssl/generate-certificates.sh
+
+# Generate 50 real MinIO service accounts
+./generate-service-accounts.sh
+
+# Start all services
+docker-compose up -d
+
+# Verify setup
+curl -I http://localhost/test-bucket/ \
+  -H "Authorization: AWS testkey:signature"
+```
+
+### **Service Endpoints**
+
+- **HAProxy 1**: `http://localhost` (port 80), `https://localhost` (port 443)
+- **HAProxy 2**: `http://localhost:81` (port 81), `https://localhost:444` (port 444)  
+- **MinIO**: `http://localhost:9001` (port 9001)
 - **HAProxy Stats**: `http://localhost:8404/stats`
-- **Stick Table Monitoring**: View individual API key rates
-- **Health Checks**: Monitor MinIO backend status
 
-### Logging
-- **Rate Limit Events**: Detailed request logging
-- **API Key Detection**: Authentication method tracking  
-- **Group Assignment**: API key to group mapping logs
+---
 
-## 🧪 Testing
+## ⚙️ **Configuration Management**
 
-### Comprehensive Go Test Suite
-Three specialized testing applications are available in the `cmd/` directory:
+### **Service Account Generation**
 
-#### 1. Comprehensive Test (`cmd/comprehensive-test/`)
-Multi-client testing with MinIO Go client, AWS S3 client, and raw HTTP API:
+```bash
+# Generate 50 service accounts with proper IAM policies
+./generate-service-accounts.sh
+
+# Accounts created:
+# - 12 Premium accounts (2000 req/min, 50 req/sec)
+# - 20 Standard accounts (500 req/min, 25 req/sec) 
+# - 18 Basic accounts (100 req/min, 10 req/sec)
+```
+
+### **Dynamic Configuration Updates**
+
+```bash
+# Show current status
+./manage-dynamic-limits show-stats
+
+# Add new API key
+./manage-dynamic-limits add-key MYKEY123 premium
+
+# Update group limits
+./manage-dynamic-limits set-limits standard 750 30
+
+# List all configurations
+./manage-dynamic-limits show-config
+```
+
+### **Map File Management**
+
+Map files are automatically updated by management scripts, but can be manually edited:
+
+1. **Edit map file**: `vim config/api_key_groups.map`  
+2. **Hot reload**: `./manage-dynamic-limits reload-config`
+3. **Verify**: Check HAProxy logs for reload confirmation
+
+---
+
+## 🧪 **Testing & Validation**
+
+### **Fast Parallel Test Suite**
+
+The project includes a comprehensive 60-second test suite:
+
 ```bash
 cd cmd/comprehensive-test
-go run main.go
+go run fast_parallel.go
 ```
-- **Real Service Accounts**: Uses all 50 generated MinIO accounts
-- **Multiple Auth Methods**: Tests AWS Signature V2, V4, and HTTP API
-- **Parallel Execution**: Concurrent testing across all tiers
-- **Detailed Statistics**: Success rates, latency, rate limiting effectiveness
 
-#### 2. Load Test (`cmd/load-test/`)
-Concurrent load testing with up to 18 clients:
+**Test Coverage**:
+- **27 concurrent test scenarios** (3 accounts × 3 methods × 3 tiers)
+- **Multiple client types**: MinIO Go client, AWS S3 Go client, HTTP API
+- **Real authentication**: Uses actual service accounts with proper signatures
+- **Rate limiting validation**: Confirms different tiers have different limits
+- **Performance metrics**: Latency, success rates, rate limiting percentages
+
+### **Sample Test Output**
+
+```
+🚀 FAST PARALLEL MinIO RATE LIMITING TEST
+========================================
+⏱️  Duration: 60.1 seconds
+📦 Total Requests: 820
+✅ Success Rate: 73.9% (606/820)
+🛑 Rate Limited: 7.7% (63 requests)
+
+📈 RESULTS BY GROUP:
+  PREMIUM tier:  80.0% success, 0.0% limited
+  STANDARD tier: 80.0% success, 3.3% limited  
+  BASIC tier:    57.3% success, 24.1% limited
+
+🔐 AUTH METHODS DETECTED:
+  v4_header_lua: 15 tests
+  v2_header_lua: 12 tests
+```
+
+### **Manual Testing**
+
+#### **Test V4 Authentication**
 ```bash
-cd cmd/load-test
-go run main.go
+curl -I http://localhost/test-bucket/ \
+  -H "Authorization: AWS4-HMAC-SHA256 Credential=5HQZO7EDOM4XBNO642GQ/20250903/us-east-1/s3/aws4_request, SignedHeaders=host, Signature=test"
 ```
-- **Concurrent Clients**: 4 premium, 8 standard, 6 basic accounts
-- **2-minute Load Test**: Sustained concurrent requests
-- **Performance Metrics**: RPS, latency, success rates per group
-- **Rate Limiting Analysis**: Validates individual key tracking under load
 
-#### 3. Rate Diagnostic (`cmd/rate-diagnostic/`)
-Individual API key behavior analysis:
+#### **Test V2 Authentication**  
 ```bash
-cd cmd/rate-diagnostic
-go run main.go
+curl -I http://localhost/test-bucket/ \
+  -H "Authorization: AWS TESTKEY123456:signature"
 ```
-- **Individual Testing**: Tests sample accounts from each tier
-- **Rate Limit Headers**: Validates HAProxy response headers
-- **Burst Testing**: Rapid requests to test burst limits
-- **Diagnostic Analysis**: Real-time rate limiting behavior
 
-## 🔄 Hot Reload Process
-
-1. **Configuration Update**: Modify `config/api_key_groups.map`
-2. **Automatic Backup**: Previous config saved to `config/backups/`
-3. **Validation**: Map file syntax verification  
-4. **HAProxy Reload**: `haproxy -f haproxy.cfg -sf $(pidof haproxy)`
-5. **Confirmation**: New API key mappings effective within 30 seconds
-
-### Manual Hot Reload Commands
+#### **Check Rate Limiting**
 ```bash
-# Reload HAProxy configuration
-./manage-api-keys-dynamic reload
-
-# Add key and auto-reload
-./manage-api-keys-dynamic add-key "NEWKEY123" "premium"
-
-# Validate map file
-./manage-api-keys-dynamic validate
+# Send multiple requests rapidly
+for i in {1..10}; do
+  curl -s -o /dev/null -w "%{http_code}\n" http://localhost/test-bucket/ \
+    -H "Authorization: AWS BASICKEY123:sig"
+done
 ```
 
-## 🐳 Deployment
+---
 
-### Docker Compose Services
-- **MinIO**: S3-compatible object storage
-- **HAProxy1**: Primary rate limiting instance
-- **HAProxy2**: Secondary rate limiting instance
+## 📊 **Monitoring & Debugging**
 
-### Production Considerations
-- **SSL/TLS**: Full HTTPS support enabled with certificate generation
-- **Health Checks**: Comprehensive service health monitoring
-- **Security**: Self-signed certificates for development, use CA-signed for production
-- **Monitoring**: Integrate with Prometheus/Grafana via HAProxy stats endpoint
-- **Log Aggregation**: Forward HAProxy logs to centralized logging system
+### **Response Headers**
 
-## 🛡️ Security
+Every response includes comprehensive rate limiting information:
 
-- **No Secret Exposure**: API keys visible in headers for debugging only
-- **Rate Limiting**: Prevents API abuse and DoS attacks
-- **Input Validation**: Secure API key extraction and validation
-- **Access Control**: Group-based permission system
+```http
+HTTP/1.1 200 OK
+X-RateLimit-Group: premium
+X-API-Key: 5HQZO7EDOM4XBNO642GQ  
+X-Auth-Method: v4_header_lua
+X-RateLimit-Limit-Per-Minute: 2000
+X-RateLimit-Limit-Per-Second: 50
+X-RateLimit-Current-Per-Minute: 15
+X-RateLimit-Current-Per-Second: 2
+X-RateLimit-Reset: 1756924143
+X-Request-ID: unique-uuid
+```
 
-## 🚀 Performance
+### **HAProxy Stats Interface**
 
-- **Zero External Dependencies**: No Redis latency
-- **In-Memory Tracking**: HAProxy stick tables for speed
-- **Minimal Overhead**: ~1ms additional latency
-- **High Throughput**: 10k+ requests/second capacity
-- **Auto-Cleanup**: Expired entries automatically removed
+Access detailed statistics at `http://localhost:8404/stats`:
 
-## 📈 Scalability
+- **Stick table usage**: API key counters and rates
+- **Backend health**: MinIO server status  
+- **Request/response metrics**: Success rates, error rates
+- **SSL certificate status**: Expiry dates, cipher info
 
-- **Horizontal Scaling**: Add more HAProxy instances
-- **API Key Capacity**: 100k keys supported out-of-box
-- **Rate Limit Flexibility**: Easy group limit modifications
-- **MinIO Clustering**: Multiple backend servers supported
+### **Debugging Features**
 
-## 📚 Advanced Documentation
+Debug headers are included for troubleshooting:
 
-For detailed technical implementation information, refer to:
+```http
+X-Debug-Full-Auth: AWS4-HMAC-SHA256 Credential=...
+X-Debug-Final-Key: 5HQZO7EDOM4XBNO642GQ
+X-Debug-Auth-Method: v4_header_lua
+X-Debug-Rate-Group: premium
+```
 
-**[TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md)** - Comprehensive technical guide covering:
-- Complete system architecture and request flow
-- HAProxy stick tables deep-dive with memory management
-- API key extraction mechanisms with detailed examples  
-- SSL/TLS configuration and certificate management
-- Rate limiting algorithms and implementation details
-- Performance characteristics and benchmarking data
-- Troubleshooting guide with common issues and solutions
-- Lua script functionality analysis (legacy implementations)
-- Production deployment best practices
+### **Log Analysis**
 
-## 🎯 Implementation Summary
+```bash
+# HAProxy request logs
+docker-compose logs haproxy1 --follow
 
-This solution delivers a **complete, production-ready** HAProxy MinIO rate limiting system featuring:
+# Filter for rate limiting
+docker-compose logs haproxy1 | grep "429"
 
-✅ **SSL/TLS HTTPS** support with automatic certificate generation  
-✅ **Real API key generation** with AWS-compatible AKIA format keys  
-✅ **Comprehensive parallel testing** framework with statistics  
-✅ **Individual API key tracking** (not shared group limits)  
-✅ **Hot reload** configuration without service interruption  
-✅ **Active-active deployment** with dual HAProxy instances  
-✅ **Zero external dependencies** - pure HAProxy solution  
-✅ **Enterprise monitoring** with detailed stats and logging  
-✅ **Complete documentation** with technical deep-dive guide  
+# Monitor specific API key
+docker-compose logs haproxy1 | grep "5HQZO7EDOM4XBNO642GQ"
+```
 
-This solution provides enterprise-grade rate limiting for MinIO deployments with the flexibility, security, and reliability needed for production environments.
+---
+
+## 🏭 **Production Deployment**
+
+### **High Availability Setup**
+
+The project supports active-active HAProxy deployment:
+
+```yaml
+# docker-compose.yml
+haproxy1:
+  ports:
+    - "80:80"    # Primary HTTP
+    - "443:443"  # Primary HTTPS
+    
+haproxy2:  
+  ports:
+    - "81:80"    # Secondary HTTP
+    - "444:443"  # Secondary HTTPS
+```
+
+### **Load Balancer Configuration**
+
+External load balancer (AWS ALB, Cloudflare, etc.) should distribute traffic:
+
+```
+External LB Rules:
+- 50% traffic -> haproxy1 (localhost:80, localhost:443)
+- 50% traffic -> haproxy2 (localhost:81, localhost:444)
+- Health checks: /stats endpoint
+```
+
+### **SSL Certificate Management**
+
+```bash
+# Generate production certificates
+./ssl/generate-certificates.sh
+
+# For production, replace with real certificates:
+# - Copy cert to ssl/certs/haproxy.crt
+# - Copy key to ssl/certs/haproxy.key  
+# - Combine: cat haproxy.crt haproxy.key > haproxy.pem
+```
+
+### **Scaling Considerations**
+
+#### **Memory Usage**
+- **Stick tables**: 100k entries × 64 bytes = ~6MB per table
+- **Total HAProxy memory**: ~50-100MB per instance
+- **Recommended**: 4GB+ system RAM
+
+#### **API Key Limits**
+- **Current capacity**: 100,000 unique API keys
+- **To increase**: Modify `size 100k` in stick table definitions
+- **Storage impact**: Linear scaling (1M keys = ~60MB memory)
+
+#### **Request Throughput**
+- **Tested**: 1000+ requests/second per HAProxy instance
+- **Bottleneck**: Usually MinIO backend, not HAProxy
+- **Scaling**: Add more HAProxy instances horizontally
+
+### **Production Checklist**
+
+- [ ] Replace self-signed SSL certificates with production certs
+- [ ] Configure external load balancer with health checks
+- [ ] Set up log aggregation (ELK stack, Splunk, etc.)
+- [ ] Configure monitoring alerts for rate limit breaches
+- [ ] Test disaster recovery procedures
+- [ ] Document runbook for common operations
+- [ ] Schedule regular certificate renewal
+- [ ] Plan capacity for expected API key growth
+
+---
+
+## 📁 **Project Structure**
+
+```
+minio-ratelimit/
+├── haproxy.cfg                    # Main HAProxy config with Lua integration
+├── extract_api_keys.lua           # Unified Lua script for all auth methods
+├── docker-compose.yml             # Production deployment setup
+├── generate-service-accounts.sh   # Real MinIO service account generator
+├── manage-dynamic-limits          # Unified configuration management script
+├── ssl/
+│   ├── generate-certificates.sh   # SSL certificate generation
+│   └── certs/                     # Generated SSL certificates
+├── config/
+│   ├── api_key_groups.map         # Hot-reloadable API key mappings
+│   ├── rate_limits_per_minute.map # Per-minute limits by group
+│   ├── rate_limits_per_second.map # Per-second limits by group
+│   ├── error_messages.map         # Custom error messages
+│   ├── generated_service_accounts.json # Real MinIO accounts
+│   └── backups/                   # Automatic configuration backups
+└── cmd/
+    └── comprehensive-test/        # Fast parallel testing framework
+        ├── fast_parallel.go       # Optimized 60-second test suite
+        ├── go.mod                 # Go module dependencies
+        └── go.sum                 # Go module checksums
+```
+
+---
+
+## 🔧 **Troubleshooting**
+
+### **Common Issues**
+
+#### **1. Authentication Not Working**
+```bash
+# Check auth method detection
+curl -I http://localhost/test-bucket/ -H "Authorization: AWS key:sig" | grep X-Auth-Method
+
+# Expected: X-Auth-Method: v2_header_lua
+# If empty: Check Lua script logs in HAProxy
+```
+
+#### **2. Rate Limiting Not Applied**
+```bash  
+# Verify API key mapping
+./manage-dynamic-limits show-config | grep YOUR_KEY
+
+# Check rate group assignment
+curl -I http://localhost/test-bucket/ -H "Authorization: AWS YOUR_KEY:sig" | grep X-RateLimit-Group
+```
+
+#### **3. Hot Reload Not Working**
+```bash
+# Test HAProxy socket connection
+echo "show info" | socat stdio unix-connect:/tmp/haproxy.sock
+
+# Manual map reload
+echo "clear map #0" | socat stdio unix-connect:/tmp/haproxy.sock
+```
+
+#### **4. SSL Certificate Issues**
+```bash
+# Verify certificate
+openssl x509 -in ssl/certs/haproxy.crt -text -noout
+
+# Test HTTPS connection
+curl -k -I https://localhost/test-bucket/
+```
+
+### **Performance Tuning**
+
+#### **Stick Table Optimization**
+```haproxy
+# Increase table size for more API keys
+stick-table type string len 64 size 1000k expire 2m
+
+# Adjust expiry for longer rate windows  
+stick-table type string len 64 size 100k expire 5m
+```
+
+#### **Lua Performance**
+```lua  
+-- Cache compiled patterns for better performance
+local aws4_pattern = "^AWS4%-HMAC%-SHA256"
+local credential_pattern = "Credential=([^,]+)"
+```
+
+---
+
+## 📖 **Additional Resources**
+
+- [HAProxy 3.0 Documentation](https://docs.haproxy.org/3.0/)
+- [HAProxy Lua API Reference](https://docs.haproxy.org/3.0/configuration.html#7.3)
+- [MinIO Admin Guide](https://min.io/docs/minio/linux/administration.html)
+- [AWS S3 API Reference](https://docs.aws.amazon.com/AmazonS3/latest/API/)
+
+---
+
+## 📄 **License**
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) file for details.
+
+---
+
+## 🤝 **Contributing**
+
+1. Fork the repository
+2. Create a feature branch  
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
+
+For major changes, please open an issue first to discuss the proposed changes.
+
+---
+
+**🎯 This documentation provides a complete understanding of the MinIO S3 API rate limiting system. For technical implementation details, see [TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md).**

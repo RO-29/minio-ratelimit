@@ -28,6 +28,7 @@ services:
       - "8404:8404"
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
       - ./ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
       - ./config:/usr/local/etc/haproxy/config:ro
     depends_on:
@@ -47,6 +48,7 @@ services:
       - "8405:8404"
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
       - ./ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
       - ./config:/usr/local/etc/haproxy/config:ro
     depends_on:
