@@ -1,0 +1,320 @@
+#!/bin/bash
+
+# API Key Management Script for HAProxy MinIO Rate Limiting
+# Provides hot reload capability without HAProxy restart
+
+CONFIG_FILE="/Users/rohit/minio-ratelimit/config/api_keys.json"
+BACKUP_DIR="/Users/rohit/minio-ratelimit/config/backups"
+HAPROXY_SOCKET="/tmp/haproxy.sock"
+
+# Ensure backup directory exists
+mkdir -p "$BACKUP_DIR"
+
+# Function to create backup
+create_backup() {
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    cp "$CONFIG_FILE" "$BACKUP_DIR/api_keys_$timestamp.json"
+    echo "Backup created: $BACKUP_DIR/api_keys_$timestamp.json"
+}
+
+# Function to validate JSON
+validate_json() {
+    local file="$1"
+    if ! python3 -m json.tool "$file" > /dev/null 2>&1; then
+        echo "ERROR: Invalid JSON in $file"
+        return 1
+    fi
+    return 0
+}
+
+# Function to add API key
+add_key() {
+    local api_key="$1"
+    local group="$2"
+    
+    if [[ -z "$api_key" || -z "$group" ]]; then
+        echo "Usage: add_key <api_key> <group>"
+        echo "Groups: premium, standard, basic"
+        exit 1
+    fi
+    
+    # Validate group
+    if [[ ! "$group" =~ ^(premium|standard|basic)$ ]]; then
+        echo "ERROR: Invalid group '$group'. Must be: premium, standard, or basic"
+        exit 1
+    fi
+    
+    # Create backup
+    create_backup
+    
+    # Create temporary file
+    local temp_file=$(mktemp)
+    
+    # Add the new key using Python for proper JSON handling
+    python3 << EOF
+import json
+import sys
+
+try:
+    with open('$CONFIG_FILE', 'r') as f:
+        config = json.load(f)
+    
+    config['$api_key'] = '$group'
+    
+    with open('$temp_file', 'w') as f:
+        json.dump(config, f, indent=2)
+    
+    print(f"Added API key '$api_key' to group '$group'")
+except Exception as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
+EOF
+
+    if [[ $? -eq 0 ]] && validate_json "$temp_file"; then
+        mv "$temp_file" "$CONFIG_FILE"
+        echo "Configuration updated successfully"
+        trigger_reload
+    else
+        rm -f "$temp_file"
+        echo "ERROR: Failed to update configuration"
+        exit 1
+    fi
+}
+
+# Function to remove API key
+remove_key() {
+    local api_key="$1"
+    
+    if [[ -z "$api_key" ]]; then
+        echo "Usage: remove_key <api_key>"
+        exit 1
+    fi
+    
+    # Create backup
+    create_backup
+    
+    # Create temporary file
+    local temp_file=$(mktemp)
+    
+    # Remove the key using Python
+    python3 << EOF
+import json
+import sys
+
+try:
+    with open('$CONFIG_FILE', 'r') as f:
+        config = json.load(f)
+    
+    if '$api_key' in config:
+        del config['$api_key']
+        print(f"Removed API key '$api_key'")
+    else:
+        print(f"API key '$api_key' not found")
+        sys.exit(1)
+    
+    with open('$temp_file', 'w') as f:
+        json.dump(config, f, indent=2)
+    
+except Exception as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
+EOF
+
+    if [[ $? -eq 0 ]] && validate_json "$temp_file"; then
+        mv "$temp_file" "$CONFIG_FILE"
+        echo "Configuration updated successfully"
+        trigger_reload
+    else
+        rm -f "$temp_file"
+        echo "ERROR: Failed to update configuration"
+        exit 1
+    fi
+}
+
+# Function to update API key group
+update_key() {
+    local api_key="$1"
+    local new_group="$2"
+    
+    if [[ -z "$api_key" || -z "$new_group" ]]; then
+        echo "Usage: update_key <api_key> <new_group>"
+        echo "Groups: premium, standard, basic"
+        exit 1
+    fi
+    
+    # Validate group
+    if [[ ! "$new_group" =~ ^(premium|standard|basic)$ ]]; then
+        echo "ERROR: Invalid group '$new_group'. Must be: premium, standard, or basic"
+        exit 1
+    fi
+    
+    # Create backup
+    create_backup
+    
+    # Create temporary file
+    local temp_file=$(mktemp)
+    
+    # Update the key using Python
+    python3 << EOF
+import json
+import sys
+
+try:
+    with open('$CONFIG_FILE', 'r') as f:
+        config = json.load(f)
+    
+    if '$api_key' in config:
+        old_group = config['$api_key']
+        config['$api_key'] = '$new_group'
+        print(f"Updated API key '$api_key' from '$old_group' to '$new_group'")
+    else:
+        print(f"API key '$api_key' not found")
+        sys.exit(1)
+    
+    with open('$temp_file', 'w') as f:
+        json.dump(config, f, indent=2)
+    
+except Exception as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
+EOF
+
+    if [[ $? -eq 0 ]] && validate_json "$temp_file"; then
+        mv "$temp_file" "$CONFIG_FILE"
+        echo "Configuration updated successfully"
+        trigger_reload
+    else
+        rm -f "$temp_file"
+        echo "ERROR: Failed to update configuration"
+        exit 1
+    fi
+}
+
+# Function to list all API keys
+list_keys() {
+    echo "Current API Key Configuration:"
+    echo "=============================="
+    python3 << EOF
+import json
+try:
+    with open('$CONFIG_FILE', 'r') as f:
+        config = json.load(f)
+    
+    # Group by rate limit groups
+    groups = {}
+    for key, group in config.items():
+        if group not in groups:
+            groups[group] = []
+        groups[group].append(key)
+    
+    for group in ['premium', 'standard', 'basic']:
+        if group in groups:
+            print(f"\\n{group.upper()} ({len(groups[group])} keys):")
+            for key in sorted(groups[group]):
+                print(f"  - {key}")
+    
+    # Show unknown groups
+    for group, keys in groups.items():
+        if group not in ['premium', 'standard', 'basic']:
+            print(f"\\n{group.upper()} ({len(keys)} keys):")
+            for key in sorted(keys):
+                print(f"  - {key}")
+                
+except Exception as e:
+    print(f"ERROR: {e}")
+EOF
+}
+
+# Function to trigger reload (placeholder for HAProxy stats socket communication)
+trigger_reload() {
+    echo "Triggering configuration reload..."
+    
+    # In a real implementation, you might:
+    # 1. Use HAProxy stats socket to reload configuration
+    # 2. Send signal to Lua script to reload
+    # 3. Use file watchers
+    
+    # For now, just touch a reload trigger file
+    touch /tmp/api_keys_reload_trigger
+    
+    echo "Reload triggered. New configuration will be loaded within 30 seconds."
+}
+
+# Function to restore from backup
+restore_backup() {
+    local backup_file="$1"
+    
+    if [[ -z "$backup_file" ]]; then
+        echo "Available backups:"
+        ls -1t "$BACKUP_DIR"/*.json 2>/dev/null | head -10 || echo "No backups found"
+        echo ""
+        echo "Usage: restore_backup <backup_file>"
+        exit 1
+    fi
+    
+    local full_path="$BACKUP_DIR/$backup_file"
+    if [[ ! -f "$full_path" ]]; then
+        echo "ERROR: Backup file not found: $full_path"
+        exit 1
+    fi
+    
+    if validate_json "$full_path"; then
+        create_backup  # Backup current config before restoring
+        cp "$full_path" "$CONFIG_FILE"
+        echo "Configuration restored from backup: $backup_file"
+        trigger_reload
+    else
+        echo "ERROR: Invalid backup file"
+        exit 1
+    fi
+}
+
+# Function to show usage
+usage() {
+    echo "HAProxy MinIO API Key Management"
+    echo "==============================="
+    echo ""
+    echo "Usage: $0 <command> [arguments]"
+    echo ""
+    echo "Commands:"
+    echo "  add-key <api_key> <group>      Add new API key to group (premium/standard/basic)"
+    echo "  remove-key <api_key>           Remove API key"
+    echo "  update-key <api_key> <group>   Update API key group"
+    echo "  list-keys                      List all API keys by group"
+    echo "  restore-backup [file]          Restore from backup (list backups if no file)"
+    echo "  help                           Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0 add-key AKIA1234567890ABCDEF premium"
+    echo "  $0 update-key test-key standard" 
+    echo "  $0 remove-key old-key"
+    echo "  $0 list-keys"
+}
+
+# Main script logic
+case "$1" in
+    add-key)
+        add_key "$2" "$3"
+        ;;
+    remove-key)
+        remove_key "$2"
+        ;;
+    update-key)
+        update_key "$2" "$3"
+        ;;
+    list-keys)
+        list_keys
+        ;;
+    restore-backup)
+        restore_backup "$2"
+        ;;
+    help|--help|-h)
+        usage
+        ;;
+    *)
+        echo "ERROR: Unknown command '$1'"
+        echo ""
+        usage
+        exit 1
+        ;;
+esac

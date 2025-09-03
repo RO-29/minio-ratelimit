@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # MinIO for testing S3 requests
+  # MinIO for testing
   minio:
     image: minio/minio:latest
     ports:
@@ -19,16 +19,14 @@ services:
       timeout: 20s
       retries: 3
 
-  # HAProxy Instance 1 - Active-Active Setup
-  haproxy1:
+  # HAProxy with rate limiting
+  haproxy:
     image: haproxy:3.0
     ports:
       - "80:80"
-      - "443:443"
       - "8404:8404"
     volumes:
-      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-      - ./ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
+      - ./haproxy-simple.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     depends_on:
       - minio
     healthcheck:
@@ -37,16 +35,14 @@ services:
       timeout: 10s
       retries: 3
 
-  # HAProxy Instance 2 - Active-Active Setup  
+  # Second HAProxy instance for active-active setup
   haproxy2:
     image: haproxy:3.0
     ports:
       - "81:80"
-      - "444:443"
       - "8405:8404"
     volumes:
-      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-      - ./ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
+      - ./haproxy-simple.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     depends_on:
       - minio
     healthcheck:
