@@ -29,6 +29,7 @@ services:
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
       - ./extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
+      - ./dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
       - ./ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
       - ./config:/usr/local/etc/haproxy/config:ro
     depends_on:
@@ -49,6 +50,7 @@ services:
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
       - ./extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
+      - ./dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
       - ./ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
       - ./config:/usr/local/etc/haproxy/config:ro
     depends_on:

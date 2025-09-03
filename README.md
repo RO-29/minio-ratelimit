@@ -7,13 +7,14 @@ This project implements a comprehensive, production-ready rate limiting solution
 ### **Key Features**
 
 - ✅ **Complete S3 Authentication Support**: AWS Signature V2/V4, pre-signed URLs, custom headers
-- ✅ **Dynamic Rate Limiting**: Hot-reloadable limits without HAProxy restart  
+- ✅ **Fully Dynamic Rate Limiting**: Zero hardcoded values - all limits from map files
+- ✅ **Hot-Reloadable Configuration**: Change limits without HAProxy restart  
 - ✅ **Multi-Tier System**: Premium, Standard, Basic, Unknown tiers with different limits
 - ✅ **Individual API Key Tracking**: Each API key has its own rate limit counter
 - ✅ **Active-Active HAProxy**: Two HAProxy instances for high availability
 - ✅ **SSL/TLS Termination**: HTTPS support with automatic certificate generation
 - ✅ **Real MinIO Integration**: 50 real service accounts with proper IAM policies
-- ✅ **Lua-Based Extraction**: Advanced string parsing for complex authentication headers
+- ✅ **Lua-Based Processing**: Advanced authentication extraction and rate limiting logic
 - ✅ **Comprehensive Testing**: Fast parallel testing framework
 
 ---
@@ -91,8 +92,9 @@ This project implements a comprehensive, production-ready rate limiting solution
 
 ### **1. Lua Scripting Integration**
 
-HAProxy 3.0's Lua support allows complex string processing for S3 authentication:
+HAProxy 3.0's Lua support provides two critical functions:
 
+**A) Authentication Extraction** (`extract_api_keys.lua`):
 ```lua
 -- Extract API keys from complex AWS Signature V4 headers
 function extract_api_key(txn)
@@ -101,6 +103,21 @@ function extract_api_key(txn)
         local credential_part = string.match(auth, "Credential=([^,]+)")
         local api_key = string.match(credential_part, "([^/]+)")
         txn:set_var("txn.api_key", api_key)
+        txn:set_var("txn.auth_method", "v4_header_lua")
+    end
+end
+```
+
+**B) Dynamic Rate Limiting** (`dynamic_rate_limiter.lua`):
+```lua
+-- Check rate limits using values from map files (no hardcoded limits)
+function check_rate_limit(txn)
+    local current_rate_per_minute = tonumber(txn.sf:sc_http_req_rate(0)) or 0
+    local limit_per_minute = tonumber(txn:get_var("txn.rate_limit_per_minute"))
+    
+    if current_rate_per_minute > limit_per_minute then
+        txn:set_var("txn.rate_limit_exceeded", "true")
+        -- Generate dynamic error message with current limits
     end
 end
 ```
@@ -241,17 +258,24 @@ Each API key maintains its own rate counters using HAProxy stick tables:
 http-request track-sc0 var(txn.api_key) table api_key_rates_1m
 http-request track-sc1 var(txn.api_key) table api_key_rates_1s
 
-# Check rate limits per API key
-http-request deny deny_status 429 if { sc_http_req_rate(0) gt 2000 } { var(txn.rate_group) -m str premium }
+# Dynamic rate limiting using Lua (no hardcoded limits)
+http-request lua.check_rate_limit
+http-request deny deny_status 429 content-type "application/xml" string "%[var(txn.rate_limit_error)]" if { var(txn.rate_limit_exceeded) -m str true }
 ```
 
-### **Rate Limiting Logic Flow**
+### **Fully Dynamic Rate Limiting Architecture**
 
-1. **Authentication Extraction**: Lua script extracts API key from request
-2. **Group Mapping**: API key mapped to rate group via map file
-3. **Rate Tracking**: Individual API key rate counters updated
-4. **Limit Enforcement**: Request denied if API key exceeds its group limits
-5. **Response Headers**: Rate limit info added to response
+**No Hardcoded Values**: All rate limiting logic uses dynamic values from map files.
+
+**Flow**:
+1. **Authentication Extraction**: Lua extracts API key from various S3 auth methods
+2. **Group Mapping**: API key → group mapping from `api_key_groups.map`
+3. **Limit Loading**: Per-minute/second limits from `rate_limits_*.map` files
+4. **Dynamic Comparison**: Lua compares current usage against dynamic limits
+5. **Smart Denial**: Lua generates error messages with current limit values
+6. **Response Headers**: Dynamic rate limit info in response headers
+
+**Key Advantage**: Change any rate limit via management script - no HAProxy restart needed.
 
 ### **Error Response Format**
 
@@ -406,18 +430,25 @@ curl -I http://localhost/test-bucket/ \
 
 ### **Dynamic Configuration Updates**
 
+**Zero Downtime Configuration Changes** - All limits changeable without HAProxy restart:
+
 ```bash
-# Show current status
+# Show current system status
 ./manage-dynamic-limits show-stats
 
-# Add new API key
+# Add new API key to group
 ./manage-dynamic-limits add-key MYKEY123 premium
 
-# Update group limits
-./manage-dynamic-limits set-limits standard 750 30
+# Change rate limits dynamically
+./manage-dynamic-limits set-minute-limit premium 3000
+./manage-dynamic-limits set-second-limit premium 75
 
-# List all configurations
-./manage-dynamic-limits show-config
+# Get current limits for verification
+./manage-dynamic-limits get-limits premium
+# Output: Per-minute limit: 3000, Per-second limit: 75
+
+# List all current configurations
+./manage-dynamic-limits list-all-limits
 ```
 
 ### **Map File Management**

@@ -3,16 +3,17 @@
 ## 📋 Table of Contents
 1. [System Architecture](#system-architecture)
 2. [HAProxy 3.0 Core Features](#haproxy-30-core-features)
-3. [Lua Authentication Engine](#lua-authentication-engine)
-4. [Request Processing Flow](#request-processing-flow)
-5. [Stick Tables Deep Dive](#stick-tables-deep-dive)
-6. [Rate Limiting Algorithms](#rate-limiting-algorithms)
-7. [Hot Reloading Internals](#hot-reloading-internals)
-8. [SSL/TLS Implementation](#ssltls-implementation)
-9. [Memory Management](#memory-management)
-10. [Performance Analysis](#performance-analysis)
-11. [Production Deployment](#production-deployment)
-12. [Advanced Troubleshooting](#advanced-troubleshooting)
+3. [Dynamic Rate Limiting Engine](#dynamic-rate-limiting-engine)
+4. [Lua Authentication Engine](#lua-authentication-engine)
+5. [Request Processing Flow](#request-processing-flow)
+6. [Stick Tables Deep Dive](#stick-tables-deep-dive)
+7. [Fully Dynamic Architecture](#fully-dynamic-architecture)
+8. [Hot Reloading Internals](#hot-reloading-internals)
+9. [SSL/TLS Implementation](#ssltls-implementation)
+10. [Memory Management](#memory-management)
+11. [Performance Analysis](#performance-analysis)
+12. [Production Deployment](#production-deployment)
+13. [Advanced Troubleshooting](#advanced-troubleshooting)
 
 ---
 
@@ -91,15 +92,22 @@
 
 #### 1. **Lua Scripting Engine**
 
-HAProxy 3.0's Lua integration provides powerful request processing:
+HAProxy 3.0's Lua integration provides two powerful scripts:
 
+**A) Authentication Extraction** (`extract_api_keys.lua`):
 ```lua
--- Core Lua functions available in HAProxy
-core.register_action()     -- Register custom actions
-core.Debug()              -- Debug logging
-txn.http:req_get_headers() -- Access request headers
-txn:set_var()             -- Set transaction variables
-txn.f:query()             -- Access query parameters
+-- Core Lua functions for authentication parsing
+core.register_action("extract_api_key", {"http-req"}, extract_api_key, 0)
+txn.http:req_get_headers() -- Access all request headers
+txn:set_var()             -- Set variables for downstream processing
+```
+
+**B) Dynamic Rate Limiting** (`dynamic_rate_limiter.lua`):
+```lua
+-- Rate limiting with zero hardcoded values
+core.register_action("check_rate_limit", {"http-req"}, check_rate_limit, 0)
+txn.sf:sc_http_req_rate() -- Get current request rates from stick tables
+txn:get_var()             -- Read rate limits from map file variables
 ```
 
 **Performance Benefits**:
@@ -179,6 +187,63 @@ ssl-default-bind-options ssl-min-ver TLSv1.2 no-tls-tickets
 # Client certificate validation
 bind *:443 ssl crt /path/cert.pem ca-file /path/ca.pem verify required
 ```
+
+---
+
+## Dynamic Rate Limiting Engine
+
+### 🚀 Zero Hardcoded Values Architecture
+
+The system eliminates all hardcoded rate limiting values through a sophisticated Lua-based engine:
+
+#### **Traditional vs Dynamic Approach**
+
+**❌ Traditional (Hardcoded):**
+```haproxy
+# Fixed values in configuration - requires restart to change
+http-request deny if { sc_http_req_rate(0) gt 2000 } { var(txn.rate_group) -m str premium }
+http-request deny if { sc_http_req_rate(0) gt 500 } { var(txn.rate_group) -m str standard }
+```
+
+**✅ Dynamic (Lua-based):**
+```haproxy
+# All logic in Lua - values from map files
+http-request lua.check_rate_limit
+http-request deny deny_status 429 content-type "application/xml" string "%[var(txn.rate_limit_error)]" if { var(txn.rate_limit_exceeded) -m str true }
+```
+
+#### **Dynamic Rate Limiting Flow**
+
+```lua
+function check_rate_limit(txn)
+    -- Get current usage from stick tables
+    local current_rate_per_minute = tonumber(txn.sf:sc_http_req_rate(0)) or 0
+    local current_rate_per_second = tonumber(txn.sf:sc_http_req_rate(1)) or 0
+    
+    -- Get dynamic limits from map file variables
+    local limit_per_minute = tonumber(txn:get_var("txn.rate_limit_per_minute"))
+    local limit_per_second = tonumber(txn:get_var("txn.rate_limit_per_second"))
+    
+    -- Dynamic comparison (no hardcoded values)
+    if current_rate_per_minute > limit_per_minute then
+        -- Generate error message with current limit values
+        local error_xml = string.format(
+            '<?xml version="1.0" encoding="UTF-8"?><Error><Code>SlowDown</Code><Message>%s (%d requests/minute per API key)</Message>...</Error>',
+            error_message, limit_per_minute
+        )
+        txn:set_var("txn.rate_limit_exceeded", "true")
+        txn:set_var("txn.rate_limit_error", error_xml)
+    end
+end
+```
+
+#### **Key Advantages**
+
+1. **Hot Configuration Changes**: All limits changeable via `./manage-dynamic-limits`
+2. **No Restarts**: Changes applied immediately without service interruption
+3. **Dynamic Error Messages**: Error responses include current limit values
+4. **Audit Trail**: All changes logged and backed up automatically
+5. **Zero Configuration Drift**: Single source of truth in map files
 
 ---
 
@@ -494,6 +559,87 @@ echo "clear table api_key_rates_1m key MYAPIKEY" | socat stdio unix:/tmp/haproxy
 # Clear all entries
 echo "clear table api_key_rates_1m" | socat stdio unix:/tmp/haproxy.sock
 ```
+
+---
+
+## Fully Dynamic Architecture
+
+### 🔄 Complete Dynamic Configuration System
+
+The system achieves complete configuration dynamism through a multi-layer architecture:
+
+#### **Layer 1: Map File Configuration**
+```bash
+# config/api_key_groups.map - API key to group mapping
+5HQZO7EDOM4XBNO642GQ premium
+VSLP8GUZ6SPYILLLGHJ0 standard
+FQ4IU19ZFZ3470XJ7GBF basic
+
+# config/rate_limits_per_minute.map - Per-minute limits
+premium 2000
+standard 500
+basic 100
+
+# config/rate_limits_per_second.map - Per-second limits  
+premium 50
+standard 25
+basic 10
+
+# config/error_messages.map - Custom error messages
+premium Premium_tier_rate_exceeded
+standard Standard_tier_rate_exceeded
+basic Basic_tier_rate_exceeded
+```
+
+#### **Layer 2: HAProxy Variable Loading**
+```haproxy
+# Load map file values into transaction variables
+http-request set-var(txn.rate_group) var(txn.api_key),map(/usr/local/etc/haproxy/config/api_key_groups.map,unknown)
+http-request set-var(txn.rate_limit_per_minute) var(txn.rate_group),map(/usr/local/etc/haproxy/config/rate_limits_per_minute.map,50)
+http-request set-var(txn.rate_limit_per_second) var(txn.rate_group),map(/usr/local/etc/haproxy/config/rate_limits_per_second.map,5)
+http-request set-var(txn.error_message) var(txn.rate_group),map(/usr/local/etc/haproxy/config/error_messages.map,Rate_limit_exceeded)
+```
+
+#### **Layer 3: Lua Dynamic Processing**
+```lua
+-- All rate limiting logic uses variables from map files
+local limit_per_minute = tonumber(txn:get_var("txn.rate_limit_per_minute"))
+local limit_per_second = tonumber(txn:get_var("txn.rate_limit_per_second"))
+local error_message = txn:get_var("txn.error_message")
+
+-- Dynamic error message generation
+local error_xml = string.format(
+    '<?xml version="1.0" encoding="UTF-8"?><Error><Code>SlowDown</Code><Message>%s (%d requests/minute per API key)</Message><Resource>%s</Resource><RequestId>%s</RequestId><ApiKey>%s</ApiKey></Error>',
+    error_message, limit_per_minute, txn.sf:path(), txn.sf:uuid(), api_key
+)
+```
+
+#### **Layer 4: Hot Reload Management**
+```bash
+# Management script provides zero-downtime updates
+./manage-dynamic-limits set-minute-limit premium 3000
+# 1. Updates map file
+# 2. Creates backup  
+# 3. Hot reloads HAProxy via socket API
+# 4. Validates changes
+# 5. No service interruption
+```
+
+### **Configuration Change Flow**
+
+1. **Command Execution**: `./manage-dynamic-limits set-minute-limit premium 3000`
+2. **Backup Creation**: Current config backed up with timestamp
+3. **Map File Update**: `rate_limits_per_minute.map` updated with new value
+4. **Socket Reload**: HAProxy runtime API reloads map file via socket
+5. **Immediate Effect**: Next request uses new limit (no restart needed)
+6. **Verification**: Script confirms change took effect
+
+### **Zero Configuration Drift**
+
+- **Single Source of Truth**: All limits stored in map files only
+- **No Hardcoded Values**: Lua script contains no fixed rate limits
+- **Atomic Updates**: All changes applied atomically via script
+- **Audit Trail**: All changes logged with timestamps and backups
 
 ---
 
