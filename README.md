@@ -1,43 +1,49 @@
 # HAProxy MinIO Rate Limiting Solution
 
-Enterprise-grade rate limiting for MinIO S3 API requests using HAProxy with group-based API key management and zero external dependencies.
+Enterprise-grade rate limiting for MinIO S3 API requests using HAProxy with SSL/TLS support, group-based API key management, comprehensive testing, and zero external dependencies.
 
 ## 🚀 Quick Start
 
 ```bash
-# Start the services
+# 1. Generate SSL certificates
+./ssl/generate-certificates.sh
+
+# 2. Start the services (with SSL/HTTPS support)
 docker-compose up -d
 
-# Add API keys to different rate limit groups
+# 3. Add API keys to different rate limit groups
 ./manage-api-keys add-key "AKIA1234567890ABCDEF" "premium"
 ./manage-api-keys add-key "your-standard-key" "standard"
 ./manage-api-keys add-key "basic-client-key" "basic"
 
-# View current API keys
-./manage-api-keys list-keys
+# 4. Run comprehensive parallel testing
+go run test-suite.go
 
-# Test rate limiting
-curl -H "Authorization: AWS your-standard-key:signature" "http://localhost/bucket/object"
+# 5. Monitor via HAProxy stats
+open http://localhost:8404/stats
 ```
 
 ## 📁 Project Structure
 
 ```
 minio-ratelimit/
-├── haproxy.cfg              # Main HAProxy configuration
-├── docker-compose.yml       # Production deployment setup
-├── manage-api-keys          # API key management script
+├── haproxy.cfg              # Main HAProxy configuration with SSL/TLS
+├── docker-compose.yml       # Production deployment setup (dual HAProxy)
+├── manage-api-keys          # API key management script with hot reload
+├── test-suite.go            # Comprehensive Go testing framework
+├── TECHNICAL_DOCUMENTATION.md # Detailed technical implementation guide
+├── ssl/
+│   ├── generate-certificates.sh # SSL certificate generation script  
+│   └── certs/               # Generated SSL certificates
 ├── config/
 │   ├── api_keys.json        # API key to group mappings
 │   └── backups/             # Automatic configuration backups
-├── lua/
-│   └── api_key_extractor.lua # Advanced Lua script for AWS auth
-└── bin/                     # Unused implementations and tests
+└── bin/                     # Experimental implementations
     ├── configs/             # Alternative HAProxy configs
     ├── compose/             # Alternative docker-compose files
-    ├── tests/               # Test scripts
+    ├── tests/               # Legacy test scripts
     ├── scripts/             # Alternative management scripts
-    └── other/               # Other unused files
+    └── other/               # Other development files
 ```
 
 ## ✨ Features
@@ -64,12 +70,16 @@ minio-ratelimit/
 - Independent counters prevent one key from affecting others
 
 ### ⚡ Key Features
+- **SSL/TLS Support**: Complete HTTPS termination with certificate generation
 - **Zero External Dependencies**: No Redis, databases, or external services
 - **Hot Reload**: Update API key groups without HAProxy restart
-- **Active-Active HAProxy**: Two instances for high availability
+- **Active-Active HAProxy**: Two instances for high availability (ports 80/81, 443/444)
+- **Real API Key Generation**: AWS-compatible keys with Go test framework
+- **Parallel Testing**: Comprehensive test scenarios with statistics
+- **Individual Key Tracking**: Each API key gets separate rate limit counters
 - **PUT/GET Focus**: Only specified methods are rate-limited
 - **S3-Compatible Errors**: Proper XML error responses
-- **Comprehensive Headers**: Rate limit info in all responses
+- **Comprehensive Documentation**: Technical deep-dive guide included
 
 ## 🛠️ API Key Management
 
@@ -101,8 +111,14 @@ minio-ratelimit/
 ## 🚦 HAProxy Setup
 
 ### Active-Active Configuration
-- **Primary Instance**: `http://localhost:80` (Stats: `http://localhost:8404/stats`)
-- **Secondary Instance**: `http://localhost:81` (Stats: `http://localhost:8405/stats`)
+- **Primary Instance**: 
+  - HTTP: `http://localhost:80`
+  - HTTPS: `https://localhost:443` 
+  - Stats: `http://localhost:8404/stats`
+- **Secondary Instance**: 
+  - HTTP: `http://localhost:81`
+  - HTTPS: `https://localhost:444`
+  - Stats: `http://localhost:8405/stats`
 
 ### Rate Limit Headers
 ```http
@@ -176,12 +192,27 @@ The main configuration (`haproxy.cfg`) includes:
 
 ## 🧪 Testing
 
-Example test scenarios in `bin/tests/`:
-- **Authentication Methods**: Test all API key extraction methods
-- **Group Limits**: Verify different rate limits per group
-- **Individual Tracking**: Confirm separate counters per API key
-- **Method Filtering**: Ensure only PUT/GET are rate limited
-- **Active-Active**: Test both HAProxy instances
+### Comprehensive Go Test Suite (`test-suite.go`)
+The included test framework provides:
+- **Real AWS API Key Generation**: AKIA-format keys compatible with S3 auth
+- **Parallel Test Execution**: Concurrent requests across all rate limit groups
+- **SSL/TLS Testing**: HTTPS endpoint validation
+- **Statistics & Reporting**: Color-coded results with detailed metrics
+- **Authentication Method Testing**: All supported S3 auth patterns
+- **Rate Limit Validation**: Confirms individual API key tracking
+- **Performance Benchmarking**: Response time and throughput analysis
+
+```bash
+# Run comprehensive tests
+go run test-suite.go
+
+# Example output:
+# ✅ Generated 12 AWS-compatible API keys
+# ✅ Testing Premium group (1000 req/min)
+# ✅ Testing Standard group (500 req/min) 
+# ✅ Testing Basic group (100 req/min)
+# 📊 Final Statistics: 98.5% success rate, avg 15ms response time
+```
 
 ## 🔄 Hot Reload Process
 
@@ -199,10 +230,11 @@ Example test scenarios in `bin/tests/`:
 - **HAProxy2**: Secondary rate limiting instance
 
 ### Production Considerations
-- **SSL/TLS**: Uncomment HTTPS binding in `haproxy.cfg`
-- **Health Checks**: Enable MinIO health checks
-- **Monitoring**: Integrate with Prometheus/Grafana
-- **Log Aggregation**: Forward HAProxy logs to centralized system
+- **SSL/TLS**: Full HTTPS support enabled with certificate generation
+- **Health Checks**: Comprehensive service health monitoring
+- **Security**: Self-signed certificates for development, use CA-signed for production
+- **Monitoring**: Integrate with Prometheus/Grafana via HAProxy stats endpoint
+- **Log Aggregation**: Forward HAProxy logs to centralized logging system
 
 ## 🛡️ Security
 
@@ -226,4 +258,33 @@ Example test scenarios in `bin/tests/`:
 - **Rate Limit Flexibility**: Easy group limit modifications
 - **MinIO Clustering**: Multiple backend servers supported
 
-This solution provides enterprise-grade rate limiting for MinIO deployments with the flexibility and reliability needed for production environments.
+## 📚 Advanced Documentation
+
+For detailed technical implementation information, refer to:
+
+**[TECHNICAL_DOCUMENTATION.md](./TECHNICAL_DOCUMENTATION.md)** - Comprehensive technical guide covering:
+- Complete system architecture and request flow
+- HAProxy stick tables deep-dive with memory management
+- API key extraction mechanisms with detailed examples  
+- SSL/TLS configuration and certificate management
+- Rate limiting algorithms and implementation details
+- Performance characteristics and benchmarking data
+- Troubleshooting guide with common issues and solutions
+- Lua script functionality analysis (legacy implementations)
+- Production deployment best practices
+
+## 🎯 Implementation Summary
+
+This solution delivers a **complete, production-ready** HAProxy MinIO rate limiting system featuring:
+
+✅ **SSL/TLS HTTPS** support with automatic certificate generation  
+✅ **Real API key generation** with AWS-compatible AKIA format keys  
+✅ **Comprehensive parallel testing** framework with statistics  
+✅ **Individual API key tracking** (not shared group limits)  
+✅ **Hot reload** configuration without service interruption  
+✅ **Active-active deployment** with dual HAProxy instances  
+✅ **Zero external dependencies** - pure HAProxy solution  
+✅ **Enterprise monitoring** with detailed stats and logging  
+✅ **Complete documentation** with technical deep-dive guide  
+
+This solution provides enterprise-grade rate limiting for MinIO deployments with the flexibility, security, and reliability needed for production environments.
