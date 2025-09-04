@@ -30,9 +30,9 @@ services:
       - "8404:8404"
     volumes:
       - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-      - ./haproxy/config/extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
-      - ./haproxy/config/dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
-      - ./haproxy/config/ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
+      - ./haproxy/lua/extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
+      - ./haproxy/lua/dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
+      - ./haproxy/ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
       - ./haproxy/config:/usr/local/etc/haproxy/config:ro
     depends_on:
       - minio
@@ -51,9 +51,9 @@ services:
       - "8405:8404"
     volumes:
       - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-      - ./haproxy/config/extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
-      - ./haproxy/config/dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
-      - ./haproxy/config/ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
+      - ./haproxy/lua/extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
+      - ./haproxy/lua/dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
+      - ./haproxy/ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
       - ./haproxy/config:/usr/local/etc/haproxy/config:ro
     depends_on:
       - minio

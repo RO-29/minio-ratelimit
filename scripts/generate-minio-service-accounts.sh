@@ -3,9 +3,20 @@
 # Generate Real MinIO Service Accounts Script with Bucket Permissions
 # Creates 40-50 service accounts across different tiers with proper IAM policies
 
-KEYS_FILE="../haproxy/config/generated_service_accounts.json"
-MAP_FILE="../haproxy/config/api_key_groups.map"
-POLICY_DIR="../haproxy/config/iam_policies"
+# Ensure paths are correctly set
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+KEYS_FILE="$PROJECT_ROOT/haproxy/config/generated_service_accounts.json"
+MAP_FILE="$PROJECT_ROOT/haproxy/config/api_key_groups.map"
+POLICY_DIR="$PROJECT_ROOT/haproxy/config/iam_policies"
+
+# Debug paths
+echo "Script directory: $SCRIPT_DIR"
+echo "Project root: $PROJECT_ROOT"
+echo "Keys file path: $KEYS_FILE"
+echo "Map file path: $MAP_FILE"
+echo "Policy directory path: $POLICY_DIR"
 
 # Colors
 RED='\033[0;31m'
@@ -35,8 +46,12 @@ echo
 echo -e "${BLUE}Checking MinIO status...${NC}"
 if ! docker exec minio-ratelimit-minio-1 mc admin info local >/dev/null 2>&1; then
     echo -e "${RED}❌ MinIO is not accessible. Starting services...${NC}"
-    docker-compose up -d minio
+    cd "$PROJECT_ROOT" && docker-compose up -d minio
     sleep 10
+
+    # Ensure mc is installed in the container
+    docker exec minio-ratelimit-minio-1 wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/bin/mc 2>/dev/null
+    docker exec minio-ratelimit-minio-1 chmod +x /usr/bin/mc 2>/dev/null
 
     # Setup MinIO alias with default credentials
     docker exec minio-ratelimit-minio-1 mc alias set local http://localhost:9000 minioadmin minioadmin
@@ -45,7 +60,7 @@ fi
 echo -e "${GREEN}✅ MinIO is accessible${NC}"
 
 # Create directories
-mkdir -p ./config ./config/backups "$POLICY_DIR"
+mkdir -p "$PROJECT_ROOT/haproxy/config" "$PROJECT_ROOT/haproxy/config/backups" "$POLICY_DIR"
 
 # Create IAM policies for bucket access
 echo -e "${BLUE}Creating IAM policies for bucket access...${NC}"
@@ -78,10 +93,20 @@ docker exec minio-ratelimit-minio-1 mc admin policy create local s3-full-access 
 create_test_buckets() {
     echo -e "${BLUE}Creating test buckets...${NC}"
 
+    # Ensure mc is available
+    if ! docker exec minio-ratelimit-minio-1 which mc >/dev/null 2>&1; then
+        echo -e "${YELLOW}Installing MinIO Client (mc) in container...${NC}"
+        docker exec minio-ratelimit-minio-1 wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/bin/mc
+        docker exec minio-ratelimit-minio-1 chmod +x /usr/bin/mc
+    fi
+
+    # Verify alias is set
+    docker exec minio-ratelimit-minio-1 mc alias set local http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1
+
     local buckets=("test-bucket" "premium-bucket" "standard-bucket" "basic-bucket" "shared-bucket")
 
     for bucket in "${buckets[@]}"; do
-        docker exec minio-ratelimit-minio-1 mc mb "local/$bucket" 2>/dev/null || true
+        docker exec minio-ratelimit-minio-1 mc mb "local/$bucket" >/dev/null 2>&1 || true
         echo -e "${GREEN}✅ Bucket: $bucket${NC}"
     done
 }
@@ -200,10 +225,17 @@ echo "   Policies: $POLICY_DIR/"
 
 # Hot reload HAProxy
 echo -e "${BLUE}Hot reloading HAProxy...${NC}"
-if ./manage-api-keys-dynamic reload; then
-    echo -e "${GREEN}✅ HAProxy reloaded successfully${NC}"
+if [[ -f "$SCRIPT_DIR/manage-dynamic-limits" ]]; then
+    if "$SCRIPT_DIR/manage-dynamic-limits" reload; then
+        echo -e "${GREEN}✅ HAProxy reloaded successfully${NC}"
+    else
+        echo -e "${YELLOW}⚠️  HAProxy reload failed, may need manual restart${NC}"
+        echo -e "${YELLOW}Restarting HAProxy containers...${NC}"
+        cd "$PROJECT_ROOT" && docker-compose restart haproxy1 haproxy2
+    fi
 else
-    echo -e "${YELLOW}⚠️  HAProxy reload failed, may need manual restart${NC}"
+    echo -e "${YELLOW}⚠️  manage-dynamic-limits script not found, restarting HAProxy containers...${NC}"
+    cd "$PROJECT_ROOT" && docker-compose restart haproxy1 haproxy2
 fi
 
 # Display summary
@@ -247,6 +279,4 @@ echo
 echo -e "${GREEN}🎯 Ready for comprehensive testing!${NC}"
 echo
 echo "Next steps:"
-echo "1. cd cmd/comprehensive-test && go run main.go"
-echo "2. cd cmd/rate-diagnostic && go run main.go"
-echo "3. cd cmd/load-test && go run main.go"
+echo "1. cd cmd/ratelimit-test && build/ratelimit-test -duration=30s -accounts=2"

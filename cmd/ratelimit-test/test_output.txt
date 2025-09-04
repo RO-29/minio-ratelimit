@@ -1,0 +1,4 @@
+📁 Results exported to /var/folders/zv/87t_ppj56458lc2xz6tngmjr0000gp/T/test_export_4070185297.json (1.9 KB)
+📊 JSON contains: Summary + 1 detailed test results + 0 total header captures
+PASS
+ok  	minio-ratelimit-test	0.319s
