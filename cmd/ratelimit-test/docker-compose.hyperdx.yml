@@ -18,6 +18,12 @@ services:
       - USAGE_STATS_ENABLED=false
       - IS_LOCAL_APP_MODE=ALLOW_ANYONE
       - BETA_CH_OTEL_JSON_SCHEMA_ENABLED=true
+      - HYPERDX_OTEL_EXPORTER_CLICKHOUSE_HOST=http://127.0.0.1:8123
+      - CLICKHOUSE_HOST=http://127.0.0.1:8123
+      - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=
+      - CLICKHOUSE_DATABASE=default
     volumes:
       - hyperdx_data:/app/data
       - hyperdx_clickhouse:/var/lib/clickhouse
