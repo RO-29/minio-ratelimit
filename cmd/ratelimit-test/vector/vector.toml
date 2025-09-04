@@ -1,0 +1,222 @@
+# Vector configuration for MinIO log processing
+data_dir = "/tmp/vector"
+
+# Source: Read the comprehensive_results.json file
+[sources.file_source]
+type = "file"
+include = ["/data/comprehensive_results.json"]
+read_from = "beginning"
+max_read_bytes = 10485760  # 10MB max file size
+
+# Source: Docker container logs (for real-time HAProxy logs)
+[sources.docker_logs]
+type = "docker_logs"
+include_containers = ["haproxy1", "haproxy2", "minio"]
+partial_event_marker_field = "partial"
+
+# Transform: Parse comprehensive_results.json
+[transforms.parse_json_results]
+type = "remap"
+inputs = ["file_source"]
+source = '''
+  # Parse the JSON content
+  .parsed = parse_json!(string!(.message))
+  
+  # Extract summary data
+  if exists(.parsed.summary) {
+    .event_type = "summary"
+    .duration = .parsed.summary.Duration / 1000000000.0  # Convert nanoseconds to seconds
+    .total_tests = .parsed.summary.TotalTests
+    
+    # Process each group in ByGroup
+    if exists(.parsed.summary.ByGroup) {
+      .groups = .parsed.summary.ByGroup
+    }
+  }
+  
+  # Extract individual test data
+  if exists(.parsed.tests) {
+    .event_type = "tests"
+    .tests = .parsed.tests
+  }
+  
+  # Add timestamp
+  .timestamp = now()
+'''
+
+# Transform: Flatten group data for ClickHouse
+[transforms.flatten_groups]
+type = "remap"
+inputs = ["parse_json_results"]
+source = '''
+  # Only process summary events with groups
+  if .event_type == "summary" && exists(.groups) {
+    # Create array to hold flattened group records
+    .flattened_records = []
+    
+    # Process each group
+    for_each(object!(.groups)) -> |group_name, group_data| {
+      .record = {
+        "timestamp": .timestamp,
+        "test_id": generate_snowflake_id(),
+        "group": group_name,
+        "api_key": string!(group_data.APIKey) || "",
+        "method": string!(group_data.Method) || "Combined",
+        "requests_sent": int!(group_data.RequestsSent) || 0,
+        "success_count": int!(group_data.Success) || 0,
+        "rate_limited_count": int!(group_data.RateLimited) || 0,
+        "error_count": int!(group_data.Errors) || 0,
+        "avg_latency_ms": float!(group_data.AvgLatencyMs) || 0.0,
+        "auth_method": string!(group_data.AuthMethod) || "",
+        "rate_limit_group": string!(group_data.RateLimitGroup) || "",
+        "burst_hits": int!(group_data.BurstHits) || 0,
+        "minute_hits": int!(group_data.MinuteHits) || 0,
+      }
+      
+      # Add rate limit details if available
+      if exists(group_data.RateLimitDetails) {
+        .record.limit_per_second = int!(group_data.RateLimitDetails.LimitPerSecond) || 0
+        .record.limit_per_minute = int!(group_data.RateLimitDetails.LimitPerMinute) || 0
+        .record.current_per_second = int!(group_data.RateLimitDetails.CurrentPerSecond) || 0
+        .record.current_per_minute = int!(group_data.RateLimitDetails.CurrentPerMinute) || 0
+        .record.reset_time = int!(group_data.RateLimitDetails.ResetTime) || 0
+      } else {
+        .record.limit_per_second = 0
+        .record.limit_per_minute = 0
+        .record.current_per_second = 0
+        .record.current_per_minute = 0
+        .record.reset_time = 0
+      }
+      
+      # Convert error details map if available
+      if exists(group_data.ErrorDetails) {
+        .record.error_details = group_data.ErrorDetails
+      } else {
+        .record.error_details = {}
+      }
+      
+      # Add header captures if available
+      if exists(group_data.HeaderCaptures) && is_array(group_data.HeaderCaptures) {
+        .record.header_captures = group_data.HeaderCaptures
+      } else {
+        .record.header_captures = []
+      }
+      
+      .flattened_records = push(.flattened_records, .record)
+    }
+    
+    # Replace the event with flattened records
+    . = .flattened_records
+  } else {
+    # For non-group events, mark for deletion
+    .delete_event = true
+  }
+'''
+
+# Transform: Split flattened records into individual events
+[transforms.split_records]
+type = "remap"
+inputs = ["flatten_groups"]
+source = '''
+  # Skip events marked for deletion
+  if exists(.delete_event) {
+    abort
+  }
+  
+  # If this is an array of records, emit each one
+  if is_array(.) {
+    # This will be handled by the route transform
+    .records_array = .
+    .emit_individual = true
+  }
+'''
+
+# Transform: Parse HAProxy logs for real-time data
+[transforms.parse_haproxy_logs]
+type = "remap"
+inputs = ["docker_logs"]
+source = '''
+  # Parse HAProxy log format
+  if match(string!(.message), r'haproxy') {
+    .event_type = "haproxy_log"
+    
+    # Extract common fields from HAProxy logs
+    # This is a simplified parser - adjust based on your actual HAProxy log format
+    .log_level = "info"
+    .service = "haproxy"
+    .container_name = string!(.container_name)
+    
+    # Try to extract HTTP status, method, path if present
+    if match(string!(.message), r'HTTP/1\.[01]" (\d+)') {
+      .status_code = parse_regex!(string!(.message), r'HTTP/1\.[01]" (?P<status>\d+)').status
+    }
+    
+    # Extract API key from logs if present
+    if match(string!(.message), r'X-API-Key: (\w+)') {
+      .api_key = parse_regex!(string!(.message), r'X-API-Key: (?P<key>\w+)').key
+    }
+  } else {
+    abort
+  }
+'''
+
+# Route to handle array splitting
+[transforms.route_records]
+type = "route"
+inputs = ["split_records"]
+
+[transforms.route_records.route.individual]
+type = "check_fields"
+message.emit_individual.eq = true
+
+[transforms.route_records.route.other]
+type = "check_fields"
+message.emit_individual.ne = true
+
+# Transform: Emit individual records
+[transforms.emit_individual_records]
+type = "lua"
+inputs = ["route_records.individual"]
+version = "2"
+hooks.process = '''
+function (event, emit)
+    local records = event.log.records_array
+    if records then
+        for i, record in ipairs(records) do
+            local new_event = {log = record}
+            emit(new_event)
+        end
+    end
+end
+'''
+
+# Sink: Send to ClickHouse
+[sinks.clickhouse_test_results]
+type = "clickhouse"
+inputs = ["emit_individual_records", "route_records.other"]
+endpoint = "http://clickhouse:8123"
+database = "minio_logs"
+table = "test_results"
+skip_unknown_fields = true
+compression = "gzip"
+
+# Optional: Add authentication if needed
+# auth.strategy = "basic"
+# auth.user = "default"
+# auth.password = ""
+
+# Sink: Send HAProxy logs to ClickHouse (if you want real-time request logging)
+[sinks.clickhouse_haproxy_logs]
+type = "clickhouse"
+inputs = ["parse_haproxy_logs"]
+endpoint = "http://clickhouse:8123"
+database = "minio_logs"
+table = "http_requests"
+skip_unknown_fields = true
+compression = "gzip"
+
+# Optional: Console output for debugging
+[sinks.console_debug]
+type = "console"
+inputs = ["emit_individual_records"]
+encoding.codec = "json"

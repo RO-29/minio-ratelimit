@@ -1,0 +1,149 @@
+{
+  "app": {
+    "name": "MinIO Rate Limiting Analytics",
+    "version": "1.0.0",
+    "env": "development"
+  },
+  "clickhouse": {
+    "host": "clickhouse",
+    "port": 8123,
+    "database": "minio_logs",
+    "username": "default",
+    "password": "",
+    "timeout": 30000
+  },
+  "dashboards": {
+    "default": [
+      {
+        "name": "Rate Limiting Overview",
+        "description": "Overall rate limiting statistics and trends",
+        "widgets": [
+          {
+            "type": "metric",
+            "title": "Total Requests Today",
+            "query": "SELECT sum(requests_sent) FROM test_results WHERE timestamp >= today()",
+            "format": "number"
+          },
+          {
+            "type": "metric",
+            "title": "Rate Limited Requests",
+            "query": "SELECT sum(rate_limited_count) FROM test_results WHERE timestamp >= today()",
+            "format": "number"
+          },
+          {
+            "type": "metric",
+            "title": "Success Rate",
+            "query": "SELECT round(sum(success_count)/sum(requests_sent)*100, 2) as success_rate FROM test_results WHERE timestamp >= today()",
+            "format": "percentage"
+          },
+          {
+            "type": "chart",
+            "title": "Requests by Group (Last 24h)",
+            "query": "SELECT group, sum(requests_sent) as requests FROM test_results WHERE timestamp >= now() - INTERVAL 24 HOUR GROUP BY group ORDER BY requests DESC",
+            "chartType": "pie"
+          }
+        ]
+      },
+      {
+        "name": "Performance Analytics",
+        "description": "Latency and performance metrics by group and time",
+        "widgets": [
+          {
+            "type": "chart",
+            "title": "Average Latency by Group",
+            "query": "SELECT group, round(avg(avg_latency_ms), 2) as avg_latency FROM test_results WHERE requests_sent > 0 GROUP BY group ORDER BY avg_latency",
+            "chartType": "bar"
+          },
+          {
+            "type": "chart",
+            "title": "Latency Trends (Hourly)",
+            "query": "SELECT hour, group, avg_latency FROM hourly_metrics WHERE hour >= now() - INTERVAL 24 HOUR ORDER BY hour",
+            "chartType": "line"
+          },
+          {
+            "type": "table",
+            "title": "Performance by Group",
+            "query": "SELECT * FROM performance_by_group",
+            "columns": ["group", "test_count", "total_requests", "avg_latency_ms", "p95_latency_ms", "success_percentage", "rate_limit_percentage"]
+          }
+        ]
+      },
+      {
+        "name": "Rate Limiting Analysis",
+        "description": "Detailed analysis of rate limiting patterns",
+        "widgets": [
+          {
+            "type": "chart",
+            "title": "Rate Limiting by Group",
+            "query": "SELECT group, round(sum(rate_limited_count)/sum(requests_sent)*100, 2) as rate_limit_pct FROM test_results WHERE requests_sent > 0 GROUP BY group ORDER BY rate_limit_pct DESC",
+            "chartType": "bar"
+          },
+          {
+            "type": "table",
+            "title": "Top Rate Limited APIs",
+            "query": "SELECT api_key, group, total_requests, total_rate_limited, rate_limit_percentage FROM rate_limit_analysis WHERE total_requests > 5 ORDER BY rate_limit_percentage DESC LIMIT 20",
+            "columns": ["api_key", "group", "total_requests", "total_rate_limited", "rate_limit_percentage"]
+          },
+          {
+            "type": "chart",
+            "title": "Rate Limiting Over Time",
+            "query": "SELECT hour, group, sum(total_rate_limited) as rate_limited FROM test_summary_mv WHERE hour >= now() - INTERVAL 24 HOUR GROUP BY hour, group ORDER BY hour",
+            "chartType": "area"
+          }
+        ]
+      },
+      {
+        "name": "Error Analysis",
+        "description": "Error patterns and troubleshooting insights",
+        "widgets": [
+          {
+            "type": "metric",
+            "title": "Total Errors Today",
+            "query": "SELECT sum(error_count) FROM test_results WHERE timestamp >= today()",
+            "format": "number"
+          },
+          {
+            "type": "table",
+            "title": "Error Breakdown by Type",
+            "query": "SELECT group, arrayJoin(mapKeys(error_details)) as error_type, sum(mapValues(error_details)) as error_count FROM test_results WHERE length(error_details) > 0 GROUP BY group, error_type ORDER BY error_count DESC",
+            "columns": ["group", "error_type", "error_count"]
+          },
+          {
+            "type": "chart",
+            "title": "Error Rate by Group",
+            "query": "SELECT group, round(sum(error_count)/sum(requests_sent)*100, 2) as error_rate FROM test_results WHERE requests_sent > 0 GROUP BY group ORDER BY error_rate DESC",
+            "chartType": "bar"
+          }
+        ]
+      }
+    ]
+  },
+  "alerts": [
+    {
+      "name": "High Rate Limiting",
+      "description": "Alert when rate limiting exceeds 50%",
+      "query": "SELECT group, round(sum(rate_limited_count)/sum(requests_sent)*100, 2) as rate_limit_pct FROM test_results WHERE timestamp >= now() - INTERVAL 1 HOUR AND requests_sent > 0 GROUP BY group HAVING rate_limit_pct > 50",
+      "threshold": 50,
+      "severity": "warning"
+    },
+    {
+      "name": "High Error Rate",
+      "description": "Alert when error rate exceeds 25%",
+      "query": "SELECT group, round(sum(error_count)/sum(requests_sent)*100, 2) as error_rate FROM test_results WHERE timestamp >= now() - INTERVAL 1 HOUR AND requests_sent > 0 GROUP BY group HAVING error_rate > 25",
+      "threshold": 25,
+      "severity": "critical"
+    },
+    {
+      "name": "High Latency",
+      "description": "Alert when average latency exceeds 1000ms",
+      "query": "SELECT group, avg(avg_latency_ms) as avg_latency FROM test_results WHERE timestamp >= now() - INTERVAL 1 HOUR AND requests_sent > 0 GROUP BY group HAVING avg_latency > 1000",
+      "threshold": 1000,
+      "severity": "warning"
+    }
+  ],
+  "ui": {
+    "theme": "dark",
+    "refreshInterval": 30000,
+    "timezone": "UTC"
+  }
+}
