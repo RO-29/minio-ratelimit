@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  # ClickHouse 25.8 for log storage
+  # ClickHouse with minimal config
   clickhouse:
-    image: clickhouse/clickhouse-server:25.8
+    image: clickhouse/clickhouse-server:latest
     container_name: clickhouse
     ports:
       - "8123:8123"  # HTTP interface
@@ -14,65 +14,13 @@ services:
       - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
     volumes:
       - clickhouse_data:/var/lib/clickhouse
-      - ./clickhouse/config.xml:/etc/clickhouse-server/config.xml:ro
-      - ./clickhouse/users.xml:/etc/clickhouse-server/users.xml:ro
-      - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ulimits:
       nofile:
         soft: 262144
         hard: 262144
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-
-  # HyperDX for visualization
-  hyperdx:
-    image: hyperdxio/hyperdx:latest
-    container_name: hyperdx
-    ports:
-      - "8080:8080"  # Web UI
-      - "4318:4318"  # OTEL HTTP
-      - "4317:4317"  # OTEL gRPC
-    environment:
-      - HYPERDX_API_KEY=dev-key-12345
-      - CLICKHOUSE_HOST=clickhouse
-      - CLICKHOUSE_PORT=8123
-      - CLICKHOUSE_USER=default
-      - CLICKHOUSE_PASSWORD=
-      - CLICKHOUSE_DATABASE=minio_logs
-      - NODE_ENV=development
-    volumes:
-      - hyperdx_data:/app/data
-      - ./hyperdx/config.json:/app/config.json:ro
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Vector for log processing and ingestion
-  vector:
-    image: timberio/vector:0.41.1-debian
-    container_name: vector
-    ports:
-      - "8686:8686"  # Vector API
-    volumes:
-      - ./vector/vector.toml:/etc/vector/vector.toml:ro
-      - ./comprehensive_results.json:/data/comprehensive_results.json:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-    command: ["vector", "--config", "/etc/vector/vector.toml"]
 
 volumes:
   clickhouse_data:
-  hyperdx_data:
 
 networks:
   default:
