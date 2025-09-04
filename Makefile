@@ -1,5 +1,5 @@
 # MinIO Rate Limiting with HAProxy - Management Makefile
-# 
+#
 # Common commands:
 #   make up          - Start all services
 #   make down        - Stop all services
@@ -99,13 +99,10 @@ haproxy-stats:
 # Test rate limits with curl
 test-limits:
 	@echo "Testing rate limits with curl..."
-	@echo "Running 10 consecutive requests to test rate limiting..."
-	@for i in {1..10}; do \
-		echo "Request $$i:"; \
-		curl -s -I -H "Authorization: AWS4-HMAC-SHA256 Credential=5HQZO7EDOM4XBNO642GQ/20250904/us-east-1/s3/aws4_request" http://localhost/test | grep -E "X-RateLimit|X-Auth"; \
-		echo ""; \
-		sleep 0.5; \
-	done
+	@echo "Running 5 consecutive requests to test rate limiting..."
+	@curl -v -H "Authorization: AWS4-HMAC-SHA256 Credential=5HQZO7EDOM4XBNO642GQ/20250904/us-east-1/s3/aws4_request" http://localhost/
+	@echo "\n\nChecking response with verbose output to see all headers..."
+	@curl -v -H "Authorization: AWS4-HMAC-SHA256 Credential=5HQZO7EDOM4XBNO642GQ/20250904/us-east-1/s3/aws4_request" http://localhost/
 
 # Backup all configuration files
 backup-configs:

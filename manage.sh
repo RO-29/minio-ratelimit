@@ -120,14 +120,14 @@ function backup_configs() {
 function increase_limits() {
   LIMIT_AMOUNT=${1:-10000}
   BURST_AMOUNT=${2:-200}
-  
+
   echo -e "${BLUE}Increasing premium rate limits...${NC}"
   echo -e "${YELLOW}Setting per-minute limit to: $LIMIT_AMOUNT${NC}"
   echo -e "${YELLOW}Setting per-second limit to: $BURST_AMOUNT${NC}"
-  
+
   sed -i '' "s/premium [0-9]*/premium $LIMIT_AMOUNT/" ./config/rate_limits_per_minute.map
   sed -i '' "s/premium [0-9]*/premium $BURST_AMOUNT/" ./config/rate_limits_per_second.map
-  
+
   echo -e "${GREEN}Rate limits increased. Remember to reload HAProxy with './manage.sh reload'${NC}"
 }
 
