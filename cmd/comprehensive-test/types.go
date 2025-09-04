@@ -123,9 +123,9 @@ type HeaderAnalysis struct {
 
 // ErrorBreakdown categorizes different types of errors
 type ErrorBreakdown struct {
-	StatusCode int
-	Count      int
-	Examples   []string
-	IsExpected bool // Whether this error type is expected in testing
+	StatusCode  int
+	Count       int
+	Examples    []string
+	IsExpected  bool // Whether this error type is expected in testing
 	Description string
 }

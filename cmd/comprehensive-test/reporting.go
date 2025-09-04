@@ -72,7 +72,7 @@ func generateSummary(results []TestResult, duration time.Duration) TestSummary {
 		gs.RateLimited += result.RateLimited
 		gs.Errors += result.Errors
 		gs.AvgLatencyMs = (gs.AvgLatencyMs + result.AvgLatencyMs) / 2
-		
+
 		// Aggregate error details
 		for errorType, count := range result.ErrorDetails {
 			gs.ErrorDetails[errorType] += count
@@ -211,7 +211,7 @@ func printReport(summary TestSummary) {
 
 	fmt.Printf("🤓 ERROR ANALYSIS BY TIER (Explains the success rates):\n")
 	fmt.Printf("========================================================\n")
-	
+
 	// Show per-tier error breakdown to explain success rates
 	for _, group := range groups {
 		stats := summary.ByGroup[group]
@@ -225,19 +225,19 @@ func printReport(summary TestSummary) {
 					fmt.Printf("  ⚠️  %s: %d (%.1f%% of %s requests)\n", errorType, count, percentage, group)
 				}
 			}
-			
+
 			// Explain why success rate is what it is
 			nonRateLimitErrors := stats.Errors - stats.RateLimited
 			if nonRateLimitErrors > 0 {
 				nonRateLimitPercentage := float64(nonRateLimitErrors) * 100 / float64(stats.RequestsSent)
-				fmt.Printf("  📝 %s tier success rate (%.1f%%) = Requests that weren't rate limited AND didn't hit test setup issues\n", 
+				fmt.Printf("  📝 %s tier success rate (%.1f%%) = Requests that weren't rate limited AND didn't hit test setup issues\n",
 					strings.ToUpper(group), float64(stats.Success)*100/float64(stats.RequestsSent))
 				fmt.Printf("      Non-rate-limit errors: %.1f%% (mostly 400 Bad Request from test bucket not existing)\n", nonRateLimitPercentage)
 			}
 			fmt.Printf("\n")
 		}
 	}
-	
+
 	fmt.Printf("🔍 DETAILED HEADER ANALYSIS:\n")
 	fmt.Printf("==============================\n")
 
@@ -287,24 +287,24 @@ func printReport(summary TestSummary) {
 	fmt.Printf("💯 PROOF POINTS:\n")
 	for group, analysis := range summary.RateLimitAnalysis {
 		if analysis.ObservedBursts > 20 {
-			fmt.Printf("✅ %s tier: %d throttle events prove rate limiting is ACTIVE and WORKING!\n", 
+			fmt.Printf("✅ %s tier: %d throttle events prove rate limiting is ACTIVE and WORKING!\n",
 				strings.ToUpper(group), analysis.ObservedBursts)
 		} else if analysis.ObservedBursts > 5 {
-			fmt.Printf("✅ %s tier: %d throttle events show rate limiting is functioning!\n", 
+			fmt.Printf("✅ %s tier: %d throttle events show rate limiting is functioning!\n",
 				strings.ToUpper(group), analysis.ObservedBursts)
 		} else {
-			fmt.Printf("✅ %s tier: Minimal throttling (%d events) shows higher limits are respected!\n", 
+			fmt.Printf("✅ %s tier: Minimal throttling (%d events) shows higher limits are respected!\n",
 				strings.ToUpper(group), analysis.ObservedBursts)
 		}
 	}
-	
+
 	fmt.Printf("\n🎯 FINAL VERDICT:\n")
 	fmt.Printf("================\n")
 	totalThrottles := 0
 	for _, analysis := range summary.RateLimitAnalysis {
 		totalThrottles += analysis.ObservedBursts
 	}
-	
+
 	if totalThrottles > 100 {
 		fmt.Printf("🎆 EXCELLENT: %d total throttle events prove your rate limiting system is WORKING PERFECTLY!\n", totalThrottles)
 	} else if totalThrottles > 50 {

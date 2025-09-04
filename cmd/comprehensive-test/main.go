@@ -10,7 +10,7 @@ import (
 func main() {
 	// Parse command-line flags
 	config := parseFlags()
-	
+
 	if config.StressPremium {
 		fmt.Printf("🚀 PREMIUM STRESS TEST - MinIO RATE LIMITING\n")
 		fmt.Printf("=============================================\n")
@@ -70,7 +70,7 @@ func main() {
 	// Generate comprehensive report
 	summary := generateSummary(results, duration)
 	printReport(summary)
-	
+
 	// Export JSON if requested
 	if config.ExportJSON {
 		exportToJSON(summary, results, config.OutputFile)

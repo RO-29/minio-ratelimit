@@ -36,12 +36,12 @@ func selectTestAccountsForConfig(all []ServiceAccount, config TestConfig) []Serv
 		"standard": {},
 		"basic":    {},
 	}
-	
+
 	// Group accounts by tier
 	for _, acc := range all {
 		groups[acc.Group] = append(groups[acc.Group], acc)
 	}
-	
+
 	var selected []ServiceAccount
 	for _, targetTier := range config.TargetTiers {
 		if accounts, exists := groups[targetTier]; exists {
@@ -58,7 +58,7 @@ func selectTestAccountsForConfig(all []ServiceAccount, config TestConfig) []Serv
 			}
 		}
 	}
-	
+
 	return selected
 }
 

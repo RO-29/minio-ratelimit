@@ -75,49 +75,49 @@ func runComprehensiveTests(ctx context.Context, accounts []ServiceAccount, progr
 func runPremiumStressTests(ctx context.Context, accounts []ServiceAccount, progress *ProgressTracker, config TestConfig) []TestResult {
 	var wg sync.WaitGroup
 	results := make(chan TestResult, len(accounts)*6) // More test types for stress testing
-	
+
 	for _, account := range accounts {
 		if account.Group != "premium" {
 			continue // Only test premium accounts in stress mode
 		}
-		
+
 		wg.Add(6) // Multiple high-load test types
-		
+
 		// High-load HTTP API tests
 		go func(acc ServiceAccount) {
 			defer wg.Done()
 			result := testPremiumStressHTTP(ctx, acc, progress)
 			results <- result
 		}(account)
-		
+
 		// Intensive burst testing
 		go func(acc ServiceAccount) {
 			defer wg.Done()
 			result := testIntensiveBurst(ctx, acc, progress)
 			results <- result
 		}(account)
-		
+
 		// Sustained load testing
 		go func(acc ServiceAccount) {
 			defer wg.Done()
 			result := testSustainedLoad(ctx, acc, progress)
 			results <- result
 		}(account)
-		
+
 		// Concurrent MinIO testing
 		go func(acc ServiceAccount) {
 			defer wg.Done()
 			result := testMinIOClientEnhanced(ctx, acc, progress)
 			results <- result
 		}(account)
-		
+
 		// Concurrent AWS S3 testing
 		go func(acc ServiceAccount) {
 			defer wg.Done()
 			result := testAWSS3ClientEnhanced(ctx, acc, progress)
 			results <- result
 		}(account)
-		
+
 		// Standard HTTP testing for comparison
 		go func(acc ServiceAccount) {
 			defer wg.Done()
@@ -125,19 +125,19 @@ func runPremiumStressTests(ctx context.Context, accounts []ServiceAccount, progr
 			results <- result
 		}(account)
 	}
-	
+
 	// Close results channel when all goroutines complete
 	go func() {
 		wg.Wait()
 		close(results)
 	}()
-	
+
 	// Collect results
 	var allResults []TestResult
 	for result := range results {
 		allResults = append(allResults, result)
 	}
-	
+
 	return allResults
 }
 
@@ -592,9 +592,9 @@ func testPremiumStressHTTP(ctx context.Context, account ServiceAccount, progress
 		ErrorDetails:   make(map[string]int),
 		ErrorExamples:  make([]ErrorExample, 0),
 	}
-	
+
 	start := time.Now()
-	
+
 	// High-frequency requests - try to find the actual rate limit
 	for i := 0; i < 200; i++ { // More requests to stress test
 		select {
@@ -602,12 +602,12 @@ func testPremiumStressHTTP(ctx context.Context, account ServiceAccount, progress
 			goto stressSummary
 		default:
 		}
-		
+
 		reqStart := time.Now()
 		object := fmt.Sprintf("stress-test-%s-%d.txt", account.AccessKey[:8], i)
 		body := bytes.NewReader([]byte(fmt.Sprintf("stress test data %d", i)))
-		
-		req, err := http.NewRequestWithContext(ctx, "PUT", 
+
+		req, err := http.NewRequestWithContext(ctx, "PUT",
 			fmt.Sprintf("http://localhost/test-bucket/%s", object), body)
 		if err != nil {
 			result.Errors++
@@ -616,16 +616,16 @@ func testPremiumStressHTTP(ctx context.Context, account ServiceAccount, progress
 			result.ErrorDetails[errorType]++
 			continue
 		}
-		
+
 		req.Header.Set("Authorization", fmt.Sprintf("AWS %s:testsignature", account.AccessKey))
 		req.Header.Set("Content-Type", "text/plain")
-		
+
 		resp, err := client.Do(req)
 		latency := time.Since(reqStart)
-		
+
 		result.RequestsSent++
 		atomic.AddInt64(&progress.totalRequests, 1)
-		
+
 		if err != nil {
 			result.Errors++
 			atomic.AddInt64(&progress.errorCount, 1)
@@ -633,7 +633,7 @@ func testPremiumStressHTTP(ctx context.Context, account ServiceAccount, progress
 			result.ErrorDetails[errorType]++
 		} else {
 			defer resp.Body.Close()
-			
+
 			// Capture headers for analysis
 			headerCapture := ResponseHeaders{
 				Timestamp:  time.Now(),
@@ -641,15 +641,15 @@ func testPremiumStressHTTP(ctx context.Context, account ServiceAccount, progress
 				LatencyMs:  latency.Milliseconds(),
 				Headers:    make(map[string]string),
 			}
-			
+
 			for _, header := range []string{"X-Auth-Method", "X-Ratelimit-Group", "X-Ratelimit-Limit-Per-Second", "X-Ratelimit-Current-Per-Second"} {
 				if value := resp.Header.Get(header); value != "" {
 					headerCapture.Headers[header] = value
 				}
 			}
-			
+
 			result.HeaderCaptures = append(result.HeaderCaptures, headerCapture)
-			
+
 			if resp.StatusCode == 429 {
 				result.RateLimited++
 				atomic.AddInt64(&progress.rateLimitCount, 1)
@@ -663,13 +663,13 @@ func testPremiumStressHTTP(ctx context.Context, account ServiceAccount, progress
 				result.ErrorDetails[errorType]++
 			}
 		}
-		
+
 		result.AvgLatencyMs = (result.AvgLatencyMs + latency.Milliseconds()) / 2
-		
+
 		// Very minimal delay to stress test
 		time.Sleep(10 * time.Millisecond)
 	}
-	
+
 stressSummary:
 	if result.RequestsSent > 0 {
 		result.AvgLatencyMs = time.Since(start).Milliseconds() / int64(result.RequestsSent)
@@ -688,9 +688,9 @@ func testIntensiveBurst(ctx context.Context, account ServiceAccount, progress *P
 		ErrorDetails:   make(map[string]int),
 		ErrorExamples:  make([]ErrorExample, 0),
 	}
-	
+
 	start := time.Now()
-	
+
 	// Multiple intensive bursts
 	for burst := 0; burst < 5; burst++ {
 		select {
@@ -698,14 +698,14 @@ func testIntensiveBurst(ctx context.Context, account ServiceAccount, progress *P
 			goto summary
 		default:
 		}
-		
+
 		// Send 50 rapid requests in each burst
 		for i := 0; i < 50; i++ {
 			reqStart := time.Now()
 			object := fmt.Sprintf("burst-%s-%d-%d.txt", account.AccessKey[:8], burst, i)
 			body := bytes.NewReader([]byte(fmt.Sprintf("burst %d-%d", burst, i)))
-			
-			req, err := http.NewRequestWithContext(ctx, "PUT", 
+
+			req, err := http.NewRequestWithContext(ctx, "PUT",
 				fmt.Sprintf("http://localhost/test-bucket/%s", object), body)
 			if err != nil {
 				result.Errors++
@@ -713,16 +713,16 @@ func testIntensiveBurst(ctx context.Context, account ServiceAccount, progress *P
 				result.ErrorDetails[errorType]++
 				continue
 			}
-			
+
 			req.Header.Set("Authorization", fmt.Sprintf("AWS %s:testsignature", account.AccessKey))
 			req.Header.Set("Content-Type", "text/plain")
-			
+
 			resp, err := client.Do(req)
 			latency := time.Since(reqStart)
-			
+
 			result.RequestsSent++
 			atomic.AddInt64(&progress.totalRequests, 1)
-			
+
 			if err != nil {
 				result.Errors++
 				atomic.AddInt64(&progress.errorCount, 1)
@@ -743,16 +743,16 @@ func testIntensiveBurst(ctx context.Context, account ServiceAccount, progress *P
 					result.ErrorDetails[errorType]++
 				}
 			}
-			
+
 			result.AvgLatencyMs = (result.AvgLatencyMs + latency.Milliseconds()) / 2
 		}
-		
+
 		// Short pause between bursts
 		if burst < 4 {
 			time.Sleep(2 * time.Second)
 		}
 	}
-	
+
 summary:
 	if result.RequestsSent > 0 {
 		result.AvgLatencyMs = time.Since(start).Milliseconds() / int64(result.RequestsSent)
@@ -771,9 +771,9 @@ func testSustainedLoad(ctx context.Context, account ServiceAccount, progress *Pr
 		ErrorDetails:   make(map[string]int),
 		ErrorExamples:  make([]ErrorExample, 0),
 	}
-	
+
 	start := time.Now()
-	
+
 	// Sustained requests until context timeout
 	i := 0
 	for {
@@ -782,12 +782,12 @@ func testSustainedLoad(ctx context.Context, account ServiceAccount, progress *Pr
 			goto summary
 		default:
 		}
-		
+
 		reqStart := time.Now()
 		object := fmt.Sprintf("sustained-%s-%d.txt", account.AccessKey[:8], i)
 		body := bytes.NewReader([]byte(fmt.Sprintf("sustained %d", i)))
-		
-		req, err := http.NewRequestWithContext(ctx, "PUT", 
+
+		req, err := http.NewRequestWithContext(ctx, "PUT",
 			fmt.Sprintf("http://localhost/test-bucket/%s", object), body)
 		if err != nil {
 			result.Errors++
@@ -796,16 +796,16 @@ func testSustainedLoad(ctx context.Context, account ServiceAccount, progress *Pr
 			i++
 			continue
 		}
-		
+
 		req.Header.Set("Authorization", fmt.Sprintf("AWS %s:testsignature", account.AccessKey))
 		req.Header.Set("Content-Type", "text/plain")
-		
+
 		resp, err := client.Do(req)
 		latency := time.Since(reqStart)
-		
+
 		result.RequestsSent++
 		atomic.AddInt64(&progress.totalRequests, 1)
-		
+
 		if err != nil {
 			result.Errors++
 			atomic.AddInt64(&progress.errorCount, 1)
@@ -826,14 +826,14 @@ func testSustainedLoad(ctx context.Context, account ServiceAccount, progress *Pr
 				result.ErrorDetails[errorType]++
 			}
 		}
-		
+
 		result.AvgLatencyMs = (result.AvgLatencyMs + latency.Milliseconds()) / 2
-		
+
 		// Consistent pacing
 		time.Sleep(100 * time.Millisecond)
 		i++
 	}
-	
+
 summary:
 	if result.RequestsSent > 0 {
 		result.AvgLatencyMs = time.Since(start).Milliseconds() / int64(result.RequestsSent)
