@@ -1,2 +1,4 @@
 .bin
 backups/
+haproxy/ssl/certs/
+comprehensive_results.json

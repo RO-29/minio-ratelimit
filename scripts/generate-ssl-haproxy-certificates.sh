@@ -2,7 +2,7 @@
 
 # SSL Certificate Generation Script for HAProxy MinIO Rate Limiting
 
-CERT_DIR="/Users/rohit/minio-ratelimit/ssl/certs"
+CERT_DIR="/Users/rohit/minio-ratelimit/haproxy/ssl/certs"
 DOMAIN="localhost"
 COUNTRY="US"
 STATE="CA"
