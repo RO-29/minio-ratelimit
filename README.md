@@ -97,7 +97,7 @@ This project implements a comprehensive, production-ready rate limiting solution
 
 HAProxy 3.0's Lua support provides two critical functions:
 
-**A) Authentication Extraction** (`extract_api_keys.lua`):
+**A) Authentication Extraction** (`haproxy/lua/extract_api_keys.lua`):
 ```lua
 -- Extract API keys from complex AWS Signature V4 headers
 function extract_api_key(txn)
@@ -111,7 +111,7 @@ function extract_api_key(txn)
 end
 ```
 
-**B) Dynamic Rate Limiting** (`dynamic_rate_limiter.lua`):
+**B) Dynamic Rate Limiting** (`haproxy/lua/dynamic_rate_limiter.lua`):
 ```lua
 -- Check rate limits using values from map files (no hardcoded limits)
 function check_rate_limit(txn)
@@ -145,10 +145,10 @@ Hot-reloadable configuration using HAProxy map files:
 
 ```haproxy
 # API key to group mapping
-http-request set-var(txn.rate_group) var(txn.api_key),map(/path/api_key_groups.map,unknown)
+http-request set-var(txn.rate_group) var(txn.api_key),map(/usr/local/etc/haproxy/config/api_key_groups.map,unknown)
 
 # Dynamic rate limits
-http-request set-var(txn.rate_limit_per_minute) var(txn.rate_group),map(/path/rate_limits_per_minute.map,50)
+http-request set-var(txn.rate_limit_per_minute) var(txn.rate_group),map(/usr/local/etc/haproxy/config/rate_limits_per_minute.map,50)
 ```
 
 ### **4. Advanced ACLs and Variables**
@@ -166,7 +166,7 @@ http-request deny deny_status 429 if { sc_http_req_rate(0) gt 2000 } { var(txn.r
 
 ### **5. SSL/TLS Termination**
 
-HTTPS support with certificate binding:
+Https support with certificate binding:
 
 ```haproxy
 frontend s3_frontend
@@ -272,8 +272,8 @@ http-request deny deny_status 429 content-type "application/xml" string "%[var(t
 
 **Flow**:
 1. **Authentication Extraction**: Lua extracts API key from various S3 auth methods
-2. **Group Mapping**: API key → group mapping from `api_key_groups.map`
-3. **Limit Loading**: Per-minute/second limits from `rate_limits_*.map` files
+2. **Group Mapping**: API key → group mapping from `haproxy/config/api_key_groups.map`
+3. **Limit Loading**: Per-minute/second limits from `haproxy/config/rate_limits_*.map` files
 4. **Dynamic Comparison**: Lua compares current usage against dynamic limits
 5. **Smart Denial**: Lua generates error messages with current limit values
 6. **Response Headers**: Dynamic rate limit info in response headers
@@ -309,7 +309,7 @@ HAProxy 3.0 supports hot reloading of map files without restarting the service:
 
 ### **Map File Structure**
 
-#### **API Key Groups** (`config/api_key_groups.map`)
+#### **API Key Groups** (`haproxy/config/api_key_groups.map`)
 ```
 # Access Key -> Group mapping
 5HQZO7EDOM4XBNO642GQ premium
@@ -317,7 +317,7 @@ VSLP8GUZ6SPYILLLGHJ0 standard
 FQ4IU19ZFZ3470XJ7GBF basic
 ```
 
-#### **Rate Limits Per Minute** (`config/rate_limits_per_minute.map`)
+#### **Rate Limits Per Minute** (`haproxy/config/rate_limits_per_minute.map`)
 ```
 # Group -> Requests per minute
 premium 2000
@@ -326,7 +326,7 @@ basic 100
 unknown 50
 ```
 
-#### **Rate Limits Per Second** (`config/rate_limits_per_second.map`)
+#### **Rate Limits Per Second** (`haproxy/config/rate_limits_per_second.map`)
 ```
 # Group -> Burst requests per second
 premium 50
@@ -335,7 +335,7 @@ basic 10
 unknown 5
 ```
 
-#### **Error Messages** (`config/error_messages.map`)
+#### **Error Messages** (`haproxy/config/error_messages.map`)
 ```
 # Group -> Custom error message
 premium Premium_rate_exceeded
@@ -352,29 +352,29 @@ echo "clear map #0" | socat stdio unix-connect:/tmp/haproxy.sock
 echo "show map #0" | socat stdio unix-connect:/tmp/haproxy.sock
 
 # Add new API key mapping
-echo "set map config/api_key_groups.map NEWKEY123 premium" | socat stdio unix-connect:/tmp/haproxy.sock
+echo "set map haproxy/config/api_key_groups.map NEWKEY123 premium" | socat stdio unix-connect:/tmp/haproxy.sock
 
 # Update rate limits
-echo "set map config/rate_limits_per_minute.map premium 3000" | socat stdio unix-connect:/tmp/haproxy.sock
+echo "set map haproxy/config/rate_limits_per_minute.map premium 3000" | socat stdio unix-connect:/tmp/haproxy.sock
 ```
 
 ### **Management Script**
 
-The `manage-dynamic-limits` script provides a user-friendly interface:
+The `scripts/manage-dynamic-limits` script provides a user-friendly interface:
 
 ```bash
 # Show current configuration
-./manage-dynamic-limits show-config
+./scripts/manage-dynamic-limits show-config
 
 # Add new API key
-./manage-dynamic-limits add-key NEWKEY123 premium
+./scripts/manage-dynamic-limits add-key NEWKEY123 premium
 
 # Update rate limits
-./manage-dynamic-limits set-limits premium 3000 75
+./scripts/manage-dynamic-limits set-limits premium 3000 75
 
 # Backup and restore
-./manage-dynamic-limits backup
-./manage-dynamic-limits restore backup_file
+./scripts/manage-dynamic-limits backup
+./scripts/manage-dynamic-limits restore backup_file
 ```
 
 ---
@@ -395,10 +395,10 @@ git clone <repository-url>
 cd minio-ratelimit
 
 # Generate SSL certificates
-./ssl/generate-certificates.sh
+./scripts/generate-ssl-haproxy-certificates.sh
 
 # Generate 50 real MinIO service accounts
-./generate-service-accounts.sh
+./scripts/generate-minio-service-accounts.sh
 
 # Start all services
 docker-compose up -d
@@ -423,7 +423,7 @@ curl -I http://localhost/test-bucket/ \
 
 ```bash
 # Generate 50 service accounts with proper IAM policies
-./generate-service-accounts.sh
+./scripts/generate-minio-service-accounts.sh
 
 # Accounts created:
 # - 12 Premium accounts (2000 req/min, 50 req/sec)
@@ -437,35 +437,35 @@ curl -I http://localhost/test-bucket/ \
 
 ```bash
 # === API Key Management ===
-./manage-dynamic-limits add-key MYKEY123 premium           # Add new key to group
-./manage-dynamic-limits remove-key MYKEY123                # Remove API key
-./manage-dynamic-limits update-key MYKEY123 standard       # Change key's group
-./manage-dynamic-limits list-keys                          # List all API keys
+./scripts/manage-dynamic-limits add-key MYKEY123 premium           # Add new key to group
+./scripts/manage-dynamic-limits remove-key MYKEY123                # Remove API key
+./scripts/manage-dynamic-limits update-key MYKEY123 standard       # Change key's group
+./scripts/manage-dynamic-limits list-keys                          # List all API keys
 
 # === Rate Limit Management ===
-./manage-dynamic-limits set-minute-limit premium 3000     # Set per-minute limit
-./manage-dynamic-limits set-second-limit premium 75       # Set per-second limit
-./manage-dynamic-limits get-limits premium                # Get limits for group
-./manage-dynamic-limits list-all-limits                   # List all rate limits
+./scripts/manage-dynamic-limits set-minute-limit premium 3000     # Set per-minute limit
+./scripts/manage-dynamic-limits set-second-limit premium 75       # Set per-second limit
+./scripts/manage-dynamic-limits get-limits premium                # Get limits for group
+./scripts/manage-dynamic-limits list-all-limits                   # List all rate limits
 
 # === Error Message Management ===
-./manage-dynamic-limits set-error-msg premium "Premium_account_exceeded"  # Custom error
-./manage-dynamic-limits get-error-msg premium                             # Get error message
+./scripts/manage-dynamic-limits set-error-msg premium "Premium_account_exceeded"  # Custom error
+./scripts/manage-dynamic-limits get-error-msg premium                             # Get error message
 
 # === System Management ===
-./manage-dynamic-limits show-stats                        # System status overview
-./manage-dynamic-limits validate                          # Validate all map files
-./manage-dynamic-limits backup                           # Create configuration backup
-./manage-dynamic-limits restore 20240903_143022          # Restore from backup
-./manage-dynamic-limits reload                           # Hot reload HAProxy
+./scripts/manage-dynamic-limits show-stats                        # System status overview
+./scripts/manage-dynamic-limits validate                          # Validate all map files
+./scripts/manage-dynamic-limits backup                           # Create configuration backup
+./scripts/manage-dynamic-limits restore 20240903_143022          # Restore from backup
+./scripts/manage-dynamic-limits reload                           # Hot reload HAProxy
 ```
 
 ### **Map File Management**
 
 Map files are automatically updated by management scripts, but can be manually edited:
 
-1. **Edit map file**: `vim config/api_key_groups.map`  
-2. **Hot reload**: `./manage-dynamic-limits reload`
+1. **Edit map file**: `vim haproxy/config/api_key_groups.map`  
+2. **Hot reload**: `./scripts/manage-dynamic-limits reload`
 3. **Verify**: Check HAProxy logs for reload confirmation
 
 ---
@@ -477,8 +477,8 @@ Map files are automatically updated by management scripts, but can be manually e
 The project includes a comprehensive 60-second test suite:
 
 ```bash
-cd cmd/comprehensive-test
-go run fast_parallel.go
+cd cmd/ratelimit-test
+go run main.go
 ```
 
 **Test Coverage**:
@@ -526,7 +526,7 @@ curl -I http://localhost/test-bucket/ \
 ```bash
 # Send multiple requests rapidly
 for i in {1..10}; do
-  curl -s -o /dev/null -w "%{http_code}\n" http://localhost/test-bucket/ \
+  curl -s -o /dev/null -w "%{\nhttp_code}" http://localhost/test-bucket/ \
     -H "Authorization: AWS BASICKEY123:sig"
 done
 ```
@@ -573,8 +573,6 @@ Run the comprehensive performance comparison:
 # Pure HAProxy latency testing
 ./cmd/performance-comparison/run_pure_haproxy_test.sh
 ```
-
-See [OPTIMIZATION_PERFORMANCE_REPORT.md](OPTIMIZATION_PERFORMANCE_REPORT.md) for detailed analysis.
 
 ---
 
@@ -666,12 +664,12 @@ External LB Rules:
 
 ```bash
 # Generate production certificates
-./ssl/generate-certificates.sh
+./scripts/generate-ssl-haproxy-certificates.sh
 
 # For production, replace with real certificates:
-# - Copy cert to ssl/certs/haproxy.crt
-# - Copy key to ssl/certs/haproxy.key  
-# - Combine: cat haproxy.crt haproxy.key > haproxy.pem
+# - Copy cert to haproxy/ssl/certs/haproxy.crt
+# - Copy key to haproxy/ssl/certs/haproxy.key  
+# - Combine: cat haproxy/ssl/certs/haproxy.crt haproxy/ssl/certs/haproxy.key > haproxy/ssl/certs/haproxy.pem
 ```
 
 ### **Scaling Considerations**
@@ -708,24 +706,27 @@ External LB Rules:
 
 ```
 minio-ratelimit/
-├── haproxy.cfg                    # Main HAProxy config with Lua integration
-├── extract_api_keys.lua           # Unified Lua script for all auth methods
+├── haproxy/
+│   ├── haproxy.cfg                # Main HAProxy config with Lua integration
+│   ├── lua/
+│   │   ├── dynamic_rate_limiter.lua # Dynamic rate limiting logic
+│   │   └── extract_api_keys.lua   # Unified Lua script for all auth methods
+│   ├── config/
+│   │   ├── api_key_groups.map     # Hot-reloadable API key mappings
+│   │   ├── rate_limits_per_minute.map # Per-minute limits by group
+│   │   ├── rate_limits_per_second.map # Per-second limits by group
+│   │   ├── error_messages.map     # Custom error messages
+│   │   └── generated_service_accounts.json # Real MinIO accounts
+│   └── ssl/
+│       └── certs/                 # Generated SSL certificates
+├── scripts/
+│   ├── generate-minio-service-accounts.sh # Real MinIO service account generator
+│   ├── generate-ssl-haproxy-certificates.sh   # SSL certificate generation
+│   └── manage-dynamic-limits      # Unified configuration management script
 ├── docker-compose.yml             # Production deployment setup
-├── generate-service-accounts.sh   # Real MinIO service account generator
-├── manage-dynamic-limits          # Unified configuration management script
-├── ssl/
-│   ├── generate-certificates.sh   # SSL certificate generation
-│   └── certs/                     # Generated SSL certificates
-├── config/
-│   ├── api_key_groups.map         # Hot-reloadable API key mappings
-│   ├── rate_limits_per_minute.map # Per-minute limits by group
-│   ├── rate_limits_per_second.map # Per-second limits by group
-│   ├── error_messages.map         # Custom error messages
-│   ├── generated_service_accounts.json # Real MinIO accounts
-│   └── backups/                   # Automatic configuration backups
 └── cmd/
-    └── comprehensive-test/        # Fast parallel testing framework
-        ├── fast_parallel.go       # Optimized 60-second test suite
+    └── ratelimit-test/            # Fast parallel testing framework
+        ├── main.go                # Optimized 60-second test suite
         ├── go.mod                 # Go module dependencies
         └── go.sum                 # Go module checksums
 ```
@@ -748,7 +749,7 @@ curl -I http://localhost/test-bucket/ -H "Authorization: AWS key:sig" | grep X-A
 #### **2. Rate Limiting Not Applied**
 ```bash  
 # Verify API key mapping
-./manage-dynamic-limits show-config | grep YOUR_KEY
+./scripts/manage-dynamic-limits show-config | grep YOUR_KEY
 
 # Check rate group assignment
 curl -I http://localhost/test-bucket/ -H "Authorization: AWS YOUR_KEY:sig" | grep X-RateLimit-Group
@@ -766,7 +767,7 @@ echo "clear map #0" | socat stdio unix-connect:/tmp/haproxy.sock
 #### **4. SSL Certificate Issues**
 ```bash
 # Verify certificate
-openssl x509 -in ssl/certs/haproxy.crt -text -noout
+openssl x509 -in haproxy/ssl/certs/haproxy.crt -text -noout
 
 # Test HTTPS connection
 curl -k -I https://localhost/test-bucket/
