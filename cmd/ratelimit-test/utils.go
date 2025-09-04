@@ -28,10 +28,10 @@ func categorizeError(errorMsg string, statusCode int) string {
 		return "Rate Limited (Expected - Testing Limits)"
 	case statusCode == 500:
 		return "Server Error (Unexpected)"
-	case strings.Contains(errorMsg, "connection refused"):
-		return "Connection Refused (Server Down)"
 	case strings.Contains(errorMsg, "timeout"):
 		return "Timeout (Expected - Heavy Load)"
+	case strings.Contains(errorMsg, "connection refused"):
+		return "Connection Refused (Server Down)"
 	case strings.Contains(errorMsg, "bucket does not exist"):
 		return "Bucket Missing (Expected - Test Setup)"
 	case strings.Contains(errorMsg, "context canceled"):
