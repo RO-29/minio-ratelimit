@@ -29,6 +29,7 @@ services:
       - hyperdx_clickhouse:/var/lib/clickhouse
       - hyperdx_mongodb:/data/db
       - ./minio_logs:/app/minio_logs:rw
+      - ./proto:/app/packages/proto
     ulimits:
       nofile:
         soft: 262144

@@ -121,7 +121,7 @@ function calc_remaining_requests(txn)
     txn:set_var("txn.rate_limit_remaining", tostring(remaining))
 
     -- Debug messages
-    txn.Info(string.format("Rate limit: %d, Current: %d, Remaining: %d",
+    core.Debug(string.format("Rate limit: %d, Current: %d, Remaining: %d",
                           rate_limit, current_rate, remaining))
 end
 
