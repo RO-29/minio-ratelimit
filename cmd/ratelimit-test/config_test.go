@@ -11,7 +11,11 @@ func TestLoadServiceAccounts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tempFile.Name())
+	defer func() {
+		if err := os.Remove(tempFile.Name()); err != nil {
+			t.Logf("Failed to remove temp file: %v", err)
+		}
+	}()
 
 	// Write test data to the file
 	testContent := `{
@@ -31,7 +35,9 @@ func TestLoadServiceAccounts(t *testing.T) {
 	if _, err := tempFile.Write([]byte(testContent)); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
-	tempFile.Close()
+	if err := tempFile.Close(); err != nil {
+		t.Fatalf("Failed to close temp file: %v", err)
+	}
 
 	// Test loading accounts
 	accounts, err := loadServiceAccounts(tempFile.Name())

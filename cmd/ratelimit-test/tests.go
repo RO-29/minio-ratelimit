@@ -365,7 +365,11 @@ func testHTTPAPIEnhanced(ctx context.Context, account ServiceAccount, progress *
 				})
 			}
 		} else {
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("Error closing response body: %v\n", err)
+				}
+			}()
 
 			// Comprehensive header capture for analysis
 			headerCapture := ResponseHeaders{
@@ -523,7 +527,11 @@ func testBurstRequests(ctx context.Context, account ServiceAccount, progress *Pr
 				result.Errors++
 				atomic.AddInt64(&progress.errorCount, 1)
 			} else {
-				defer resp.Body.Close()
+				defer func() {
+					if err := resp.Body.Close(); err != nil {
+						fmt.Printf("Error closing response body: %v\n", err)
+					}
+				}()
 
 				// Capture detailed burst headers
 				headerCapture := ResponseHeaders{
@@ -632,7 +640,11 @@ func testPremiumStressHTTP(ctx context.Context, account ServiceAccount, progress
 			errorType := categorizeError(err.Error(), 0)
 			result.ErrorDetails[errorType]++
 		} else {
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("Error closing response body: %v\n", err)
+				}
+			}()
 
 			// Capture headers for analysis
 			headerCapture := ResponseHeaders{
@@ -729,7 +741,11 @@ func testIntensiveBurst(ctx context.Context, account ServiceAccount, progress *P
 				errorType := categorizeError(err.Error(), 0)
 				result.ErrorDetails[errorType]++
 			} else {
-				defer resp.Body.Close()
+				defer func() {
+					if err := resp.Body.Close(); err != nil {
+						fmt.Printf("Error closing response body: %v\n", err)
+					}
+				}()
 				if resp.StatusCode == 429 {
 					result.RateLimited++
 					atomic.AddInt64(&progress.rateLimitCount, 1)
@@ -812,7 +828,7 @@ func testSustainedLoad(ctx context.Context, account ServiceAccount, progress *Pr
 			errorType := categorizeError(err.Error(), 0)
 			result.ErrorDetails[errorType]++
 		} else {
-			defer resp.Body.Close()
+			// Process response first
 			if resp.StatusCode == 429 {
 				result.RateLimited++
 				atomic.AddInt64(&progress.rateLimitCount, 1)
@@ -824,6 +840,11 @@ func testSustainedLoad(ctx context.Context, account ServiceAccount, progress *Pr
 				atomic.AddInt64(&progress.errorCount, 1)
 				errorType := categorizeError("", resp.StatusCode)
 				result.ErrorDetails[errorType]++
+			}
+
+			// Close the body explicitly instead of using defer in this loop
+			if err := resp.Body.Close(); err != nil {
+				fmt.Printf("Error closing response body: %v\n", err)
 			}
 		}
 

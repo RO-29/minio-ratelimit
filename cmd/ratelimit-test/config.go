@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -61,7 +60,7 @@ func parseFlags() TestConfig {
 
 // Load service accounts from JSON configuration file
 func loadServiceAccounts(configFile string) ([]ServiceAccount, error) {
-	data, err := ioutil.ReadFile(configFile)
+	data, err := os.ReadFile(configFile)
 	if err != nil {
 		return nil, err
 	}

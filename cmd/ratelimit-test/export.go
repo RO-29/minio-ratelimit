@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 )
 
@@ -27,7 +27,7 @@ func exportToJSON(summary TestSummary, results []TestResult, filename string) {
 		return
 	}
 
-	err = ioutil.WriteFile(filename, jsonData, 0644)
+	err = os.WriteFile(filename, jsonData, 0644)
 	if err != nil {
 		fmt.Printf("⚠️  Error writing JSON file: %v\n", err)
 		return
