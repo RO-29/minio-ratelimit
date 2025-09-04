@@ -32,7 +32,7 @@ func parseFlags() TestConfig {
 	flag.BoolVar(&config.ExportJSON, "json", false, "Export detailed results to JSON file")
 	flag.StringVar(&config.OutputFile, "output", "rate_limit_test_results.json", "Output file for JSON export")
 	flag.BoolVar(&config.Verbose, "verbose", false, "Enable verbose logging")
-	flag.StringVar(&config.ConfigFile, "config", "../../config/generated_service_accounts.json", "Path to service accounts config file")
+	flag.StringVar(&config.ConfigFile, "config", "../../haproxy/config/generated_service_accounts.json", "Path to service accounts config file")
 
 	var tiersFlag string
 	flag.StringVar(&tiersFlag, "tiers", "basic,standard,premium", "Comma-separated list of tiers to test (basic,standard,premium)")

@@ -3,9 +3,9 @@
 # Generate Real MinIO Service Accounts Script with Bucket Permissions
 # Creates 40-50 service accounts across different tiers with proper IAM policies
 
-KEYS_FILE="./config/generated_service_accounts.json"
-MAP_FILE="./config/api_key_groups.map"
-POLICY_DIR="./config/iam_policies"
+KEYS_FILE="../haproxy/config/generated_service_accounts.json"
+MAP_FILE="../haproxy/config/api_key_groups.map"
+POLICY_DIR="../haproxy/config/iam_policies"
 
 # Colors
 RED='\033[0;31m'
@@ -26,7 +26,7 @@ TOTAL_COUNT=$((PREMIUM_COUNT + STANDARD_COUNT + BASIC_COUNT))
 
 echo -e "${BLUE}Planning to generate:${NC}"
 echo "  • Premium tier: $PREMIUM_COUNT accounts"
-echo "  • Standard tier: $STANDARD_COUNT accounts"  
+echo "  • Standard tier: $STANDARD_COUNT accounts"
 echo "  • Basic tier: $BASIC_COUNT accounts"
 echo "  • Total: $TOTAL_COUNT accounts"
 echo
@@ -37,7 +37,7 @@ if ! docker exec minio-ratelimit-minio-1 mc admin info local >/dev/null 2>&1; th
     echo -e "${RED}❌ MinIO is not accessible. Starting services...${NC}"
     docker-compose up -d minio
     sleep 10
-    
+
     # Setup MinIO alias with default credentials
     docker exec minio-ratelimit-minio-1 mc alias set local http://localhost:9000 minioadmin minioadmin
 fi
@@ -77,9 +77,9 @@ docker exec minio-ratelimit-minio-1 mc admin policy create local s3-full-access 
 # Function to create test buckets
 create_test_buckets() {
     echo -e "${BLUE}Creating test buckets...${NC}"
-    
+
     local buckets=("test-bucket" "premium-bucket" "standard-bucket" "basic-bucket" "shared-bucket")
-    
+
     for bucket in "${buckets[@]}"; do
         docker exec minio-ratelimit-minio-1 mc mb "local/$bucket" 2>/dev/null || true
         echo -e "${GREEN}✅ Bucket: $bucket${NC}"
@@ -91,40 +91,40 @@ generate_service_account() {
     local group=$1
     local count=$2
     local total_in_group=$3
-    
+
     echo -e "${YELLOW}Creating $group service account ($count/$total_in_group)...${NC}"
-    
+
     # Create service account using MinIO admin
     local output=$(docker exec minio-ratelimit-minio-1 mc admin user svcacct add local minioadmin 2>&1)
-    
+
     if [[ $? -eq 0 ]]; then
         # Extract access key and secret key from output
         local extracted_access_key=$(echo "$output" | grep "Access Key:" | awk '{print $3}')
         local extracted_secret_key=$(echo "$output" | grep "Secret Key:" | awk '{print $3}')
-        
+
         # Apply the s3-full-access policy to the service account
         docker exec minio-ratelimit-minio-1 mc admin user svcacct edit local "$extracted_access_key" --policy s3-full-access 2>/dev/null || true
-        
+
         echo -e "${GREEN}✅ Created service account:${NC}"
         echo "   Access Key: $extracted_access_key"
         echo "   Group: $group"
         echo "   Policy: s3-full-access"
-        
+
         # Store in JSON format
         cat <<EOF >> "$KEYS_FILE.tmp"
 {
     "access_key": "$extracted_access_key",
-    "secret_key": "$extracted_secret_key", 
+    "secret_key": "$extracted_secret_key",
     "group": "$group",
     "created": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
     "description": "Auto-generated $group tier service account #$count",
     "policy": "s3-full-access"
 },
 EOF
-        
+
         # Add to HAProxy map
         echo "$extracted_access_key $group" >> "$MAP_FILE.tmp"
-        
+
         return 0
     else
         echo -e "${RED}❌ Failed to create service account for $group #$count${NC}"
@@ -157,7 +157,7 @@ for i in $(seq 1 $PREMIUM_COUNT); do
     sleep 1
 done
 
-# Generate Standard accounts  
+# Generate Standard accounts
 echo -e "${BLUE}=== STANDARD TIER ($STANDARD_COUNT accounts) ===${NC}"
 for i in $(seq 1 $STANDARD_COUNT); do
     generate_service_account "standard" "$i" "$STANDARD_COUNT"
@@ -215,30 +215,30 @@ echo "Total accounts created: $TOTAL_COUNT"
 if [[ -f "$KEYS_FILE" ]]; then
     echo
     echo "Breakdown by tier:"
-    
+
     premium_actual=$(grep "premium" "$MAP_FILE" | grep -v "minioadmin" | wc -l | tr -d ' ')
     standard_actual=$(grep "standard" "$MAP_FILE" | wc -l | tr -d ' ')
     basic_actual=$(grep "basic" "$MAP_FILE" | wc -l | tr -d ' ')
-    
+
     echo "  • Premium: $premium_actual accounts (limit: 1000 req/min)"
     echo "  • Standard: $standard_actual accounts (limit: 500 req/min)"
     echo "  • Basic: $basic_actual accounts (limit: 100 req/min)"
     echo "  • Admin: 1 account (minioadmin)"
-    
+
     echo
     echo "Sample keys per tier:"
     grep "premium" "$MAP_FILE" | head -3 | while read key group; do
         echo "  • $key ($group)"
     done | head -3
-    
+
     echo "  ..."
-    
+
     echo
     echo "Storage locations:"
     echo "  • HAProxy map file: $MAP_FILE"
-    echo "  • Service accounts JSON: $KEYS_FILE" 
+    echo "  • Service accounts JSON: $KEYS_FILE"
     echo "  • IAM policies: $POLICY_DIR/"
-    
+
 else
     echo -e "${RED}❌ No service accounts file found${NC}"
 fi
