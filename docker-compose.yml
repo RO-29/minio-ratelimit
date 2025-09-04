@@ -10,6 +10,8 @@ services:
     environment:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
+      MINIO_API_REQUESTS_MAX: 8000
+
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data

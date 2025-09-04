@@ -101,5 +101,24 @@ function check_rate_limit(txn)
     txn:set_var("txn.rate_limit_exceeded", rate_not_exceeded)
 end
 
--- Register the optimized function
+-- Function to calculate remaining requests
+function calc_remaining_requests(txn)
+    -- Get the current rate from the stick table
+    local current_rate = tonumber(txn.sf:sc_http_req_rate(0)) or 0
+    
+    -- Get the rate limit
+    local rate_limit = tonumber(txn:get_var("txn.rate_limit_per_minute")) or default_minute_limit
+    
+    -- Calculate remaining (ensure it doesn't go below zero)
+    local remaining = rate_limit - current_rate
+    if remaining < 0 then
+        remaining = 0
+    end
+    
+    -- Set the variable
+    txn:set_var("txn.rate_limit_remaining", tostring(remaining))
+end
+
+-- Register the optimized functions
 core.register_action("check_rate_limit", {"http-req"}, check_rate_limit, 0)
+core.register_action("calc_remaining_requests", {"http-req"}, calc_remaining_requests, 0)
