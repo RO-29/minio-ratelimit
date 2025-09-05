@@ -2,4 +2,4 @@
 backups/
 haproxy/ssl/certs/
 comprehensive_results.json
-scriots/cleanup.sh
+scripts/cleanup.sh

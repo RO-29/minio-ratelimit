@@ -175,7 +175,7 @@ if [ -d "./.bin/other" ]; then
   # Create a temporary directory to examine files
   mkdir -p ./.bin/temp_files/other_examination
   cp -r ./.bin/other/* ./.bin/temp_files/other_examination/ 2>/dev/null
-  
+
   # Process files based on extension
   find ./.bin/temp_files/other_examination -type f -name "*.lua" -exec mv {} ./.bin/old_lua_scripts/ \;
   find ./.bin/temp_files/other_examination -type f -name "*.cfg" -exec mv {} ./.bin/old_haproxy_configs/ \;
@@ -183,10 +183,10 @@ if [ -d "./.bin/other" ]; then
   find ./.bin/temp_files/other_examination -type f -name "*.sh" -exec mv {} ./.bin/development_tools/ \;
   find ./.bin/temp_files/other_examination -type f -name "*.json" -exec mv {} ./.bin/test_data/ \;
   find ./.bin/temp_files/other_examination -type f -name "*.md" -exec mv {} ./.bin/docs_archive/ \;
-  
+
   # Move any remaining files to archived_scripts
   find ./.bin/temp_files/other_examination -type f -exec mv {} ./.bin/archived_scripts/ \;
-  
+
   # Clean up
   rm -rf ./.bin/temp_files/other_examination
   rm -rf ./.bin/other 2>/dev/null
