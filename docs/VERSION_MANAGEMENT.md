@@ -68,7 +68,7 @@ When you update the HAProxy version:
 
 The version management system includes tools to verify version consistency:
 
-1. **CI Verification**: The CI workflow automatically checks that all versions are consistent with the central configuration.
+1. **CI Verification**: The consolidated CI workflow (`ci.yml`) automatically checks version consistency in the `build` job after linting and testing complete.
 
 2. **Local Verification**: Run `make verify-versions` to check version consistency across all project files. This command:
    - Checks Go versions in go.mod files

@@ -17,9 +17,9 @@ This addition enhances the version management system by adding comprehensive ver
    - Updated `validate-all` to include version verification
 
 3. **CI Integration**
-   - Added verification job to CI workflow
-   - Configured dependencies to ensure verification runs at the right time
-   - Workflow now validates version consistency on each commit
+   - Integrated into consolidated CI workflow (`ci.yml`)
+   - Version verification runs in the `build` job after linting and testing
+   - Automatic version consistency validation on each commit
 
 4. **Documentation Updates**
    - Updated VERSION_MANAGEMENT.md with verification information

@@ -9,121 +9,57 @@ on:
 
 jobs:
   setup:
-    name: Extract Versions
+    name: Setup and Version Check
     runs-on: ubuntu-latest
     outputs:
       go_version: ${{ steps.extract_versions.outputs.go_version }}
-      lua_version: ${{ steps.extract_versions.outputs.lua_version }}
       haproxy_version: ${{ steps.extract_versions.outputs.haproxy_version }}
       minio_version: ${{ steps.extract_versions.outputs.minio_version }}
-      docker_compose_version: ${{ steps.extract_versions.outputs.docker_compose_version }}
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Extract version information
         id: extract_versions
         run: |
-          # Extract versions from versions.mk
+          source ./scripts/export_versions.sh 2>/dev/null || true
+          
           GO_VERSION=$(grep -E '^GO_VERSION :=' versions.mk | sed 's/GO_VERSION := //')
-          LUA_VERSION=$(grep -E '^LUA_VERSION :=' versions.mk | sed 's/LUA_VERSION := //')
           HAPROXY_VERSION=$(grep -E '^HAPROXY_VERSION :=' versions.mk | sed 's/HAPROXY_VERSION := //')
           MINIO_VERSION=$(grep -E '^MINIO_VERSION :=' versions.mk | sed 's/MINIO_VERSION := //')
-          DOCKER_COMPOSE_VERSION=$(grep -E '^DOCKER_COMPOSE_VERSION :=' versions.mk | sed 's/DOCKER_COMPOSE_VERSION := //')
-
-          echo "Extracted versions:"
-          echo "Go: $GO_VERSION"
-          echo "Lua: $LUA_VERSION"
-          echo "HAProxy: $HAPROXY_VERSION"
-          echo "MinIO: $MINIO_VERSION"
-          echo "Docker Compose: $DOCKER_COMPOSE_VERSION"
-
-          # Verify versions are properly extracted
-          if [[ -z "$GO_VERSION" || -z "$LUA_VERSION" || -z "$HAPROXY_VERSION" || -z "$MINIO_VERSION" ]]; then
-            echo "::error::Failed to extract one or more versions from versions.mk"
-            exit 1
-          fi
-
-          # Set outputs for other jobs to use
+          
           echo "go_version=$GO_VERSION" >> $GITHUB_OUTPUT
-          echo "lua_version=$LUA_VERSION" >> $GITHUB_OUTPUT
           echo "haproxy_version=$HAPROXY_VERSION" >> $GITHUB_OUTPUT
           echo "minio_version=$MINIO_VERSION" >> $GITHUB_OUTPUT
-          echo "docker_compose_version=$DOCKER_COMPOSE_VERSION" >> $GITHUB_OUTPUT
+          
+          echo "Using versions: Go=$GO_VERSION, HAProxy=$HAPROXY_VERSION, MinIO=$MINIO_VERSION"
 
-      - name: Test export_versions.sh script
-        run: |
-          chmod +x ./scripts/export_versions.sh
-          ./scripts/export_versions.sh
-          if [[ -z "$MINIO_VERSION" || -z "$HAPROXY_VERSION" ]]; then
-            echo "::warning::Script did not properly export environment variables"
-          else
-            echo "Script successfully exported environment variables"
-          fi
+      - name: Check versions
+        run: make check-versions
 
-  validate:
-    name: Validate Configurations
+  lint:
+    name: Lint and Validate
     needs: setup
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: ${{ needs.setup.outputs.go_version }}
 
-      - name: Install HAProxy for validation
-        run: |
-          sudo apt-get update
+      - name: Setup CI environment
+        run: make ci-setup
+        env:
+          CI: true
 
-          # For HAProxy 3.0, we need to use a PPA or Docker container
-          # First, check if we can add the HAProxy PPA
-          echo "Trying to install HAProxy 3.0..."
-
-          # Try to add HAProxy's official PPA
-          sudo add-apt-repository -y ppa:vbernat/haproxy-3.0 || true
-          sudo apt-get update
-
-          # Check available versions
-          echo "Available HAProxy versions:"
-          apt-cache madison haproxy
-
-          # Try specific installation approaches
-          if sudo apt-cache madison haproxy | grep -q "3.0"; then
-            echo "Found HAProxy 3.0 in repositories, installing..."
-            sudo apt-get install -y haproxy=3.0* lua${{ needs.setup.outputs.lua_version }} luarocks
-          elif command -v docker >/dev/null 2>&1; then
-            echo "Using Docker to run HAProxy 3.0 validation"
-            docker pull haproxy:3.0
-            # Just pull the image for validation - actual tests will use docker-compose
-            echo "Docker HAProxy version:"
-            docker run --rm haproxy:3.0 haproxy -v
-            # Install Lua separately
-            sudo apt-get install -y lua${{ needs.setup.outputs.lua_version }} luarocks
-          else
-            echo "::warning::Could not install HAProxy 3.0 - falling back to available version"
-            sudo apt-get install -y haproxy lua${{ needs.setup.outputs.lua_version }} luarocks
-          fi
-
-          echo "Installed Lua version:"
-          lua -v
-
-          # If running locally, show HAProxy version
-          if command -v haproxy >/dev/null 2>&1; then
-            echo "Local HAProxy version:"
-            haproxy -v
-          fi
-
-      - name: Install golangci-lint
-        run: |
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
-      - name: Run validation checks
+      - name: Run linting and validation
         run: make ci-validate
+        env:
+          CI: true
+          CI_NO_COLOR: true
 
   test:
     name: Run Tests
@@ -131,169 +67,97 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: ${{ needs.setup.outputs.go_version }}
 
-      - name: Run Go tests
-        run: cd cmd/ratelimit-test && go test -v ./... -coverprofile=coverage.out
+      - name: Run CI tests
+        run: make ci-test
+        env:
+          CI: true
 
       - name: Upload test coverage
         uses: actions/upload-artifact@v4
         with:
           name: test-coverage
-          path: cmd/ratelimit-test/coverage.out
+          path: test-results/coverage.out
 
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [validate, setup]
+    needs: [lint, setup]
     env:
       HAPROXY_VERSION: ${{ needs.setup.outputs.haproxy_version }}
       MINIO_VERSION: ${{ needs.setup.outputs.minio_version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Export versions as environment variables
-        run: |
-          echo "Setting versions for Docker Compose:"
-          echo "HAPROXY_VERSION=${{ needs.setup.outputs.haproxy_version }}"
-          echo "MINIO_VERSION=${{ needs.setup.outputs.minio_version }}"
-          echo "HAPROXY_VERSION=${{ needs.setup.outputs.haproxy_version }}" >> $GITHUB_ENV
-          echo "MINIO_VERSION=${{ needs.setup.outputs.minio_version }}" >> $GITHUB_ENV
-          chmod +x ./scripts/export_versions.sh
-          ./scripts/export_versions.sh
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ needs.setup.outputs.go_version }}
 
-      - name: Start services with Docker Compose
-        run: |
-          # Get the Docker Compose command from the environment check
-          echo "Using Docker Compose command: docker compose"
-          source ./scripts/export_versions.sh
-          docker compose up -d
+      - name: Setup CI environment
+        run: make ci-setup
+        env:
+          CI: true
 
-      - name: Wait for services to be ready
+      - name: Run full validation tests
+        run: make validate-all
+        env:
+          CI: true
+          CI_NO_COLOR: true
+
+      - name: Start services
+        run: make up
+
+      - name: Wait for services
         run: |
           echo "Waiting for services to be ready..."
-          sleep 10
-          docker compose ps
-          echo "Docker images running:"
-          docker images | grep -E 'haproxy|minio'
+          sleep 15
+          make status
 
-      - name: Run quick tests
+      - name: Run integration tests
         run: make test-quick
 
       - name: Stop services
-        run: docker compose down
+        run: make down
+        if: always()
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: test-results
+          name: integration-test-results
           path: cmd/ratelimit-test/results/
 
-  verify-versions:
-    name: Verify Version Consistency
+  build:
+    name: Build and Verify
     runs-on: ubuntu-latest
-    needs: [setup]
+    needs: [lint, test, setup]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Verify go.mod version matches versions.mk
-        run: |
-          GO_VERSION_MK=$(grep -E '^GO_VERSION :=' versions.mk | sed 's/GO_VERSION := //')
-          GO_VERSION_MOD=$(grep -E '^go ' cmd/ratelimit-test/go.mod | awk '{print $2}')
-          echo "versions.mk Go version: $GO_VERSION_MK"
-          echo "go.mod Go version: $GO_VERSION_MOD"
-
-          if [[ "$GO_VERSION_MK" != "$GO_VERSION_MOD" ]]; then
-            echo "::warning::Go version mismatch between versions.mk ($GO_VERSION_MK) and go.mod ($GO_VERSION_MOD)"
-            echo "Run 'make update-go-version' to synchronize versions"
-          else
-            echo "Go versions are in sync"
-          fi
-
-      - name: Check Docker image references
-        run: |
-          HAPROXY_VERSION=$(grep -E '^HAPROXY_VERSION :=' versions.mk | sed 's/HAPROXY_VERSION := //')
-          HAPROXY_DOCKER_REFS=$(grep -r "haproxy:" --include="*.yml" --include="Dockerfile" . | grep -v "versions.mk")
-          echo "Found HAProxy Docker references:"
-          echo "$HAPROXY_DOCKER_REFS"
-
-          INCORRECT_REFS=$(echo "$HAPROXY_DOCKER_REFS" | grep -v "$HAPROXY_VERSION" || true)
-          if [[ -n "$INCORRECT_REFS" ]]; then
-            echo "::warning::Found HAProxy references with incorrect version:"
-            echo "$INCORRECT_REFS"
-            echo "Run 'make update-haproxy-version' to synchronize versions"
-          else
-            echo "All HAProxy Docker references use the correct version"
-          fi
-
-      - name: Check Docker Compose version references
-        run: |
-          DOCKER_COMPOSE_VERSION=$(grep -E '^DOCKER_COMPOSE_VERSION :=' versions.mk | sed 's/DOCKER_COMPOSE_VERSION := //')
-          echo "Looking for Docker Compose version references..."
-
-          # Check documentation files for Docker Compose version references
-          DOC_REFERENCES=$(grep -r "Docker Compose" --include="*.md" --include="*.txt" . | grep -v "versions.mk" || true)
-          if [[ -n "$DOC_REFERENCES" ]]; then
-            echo "Found Docker Compose references in documentation:"
-            echo "$DOC_REFERENCES"
-
-            # Check if the documentation references the correct version
-            INCORRECT_DOC_REFS=$(grep -r "Docker Compose .* [0-9]" --include="*.md" --include="*.txt" . | grep -v "$DOCKER_COMPOSE_VERSION" || true)
-            if [[ -n "$INCORRECT_DOC_REFS" ]]; then
-              echo "::warning::Found Docker Compose references with incorrect version:"
-              echo "$INCORRECT_DOC_REFS"
-              echo "Run 'make update-all-versions' to synchronize versions"
-            else
-              echo "All Docker Compose references in documentation are correct or use variables"
-            fi
-          else
-            echo "No explicit Docker Compose version references found in documentation"
-          fi
-
-      - name: Run comprehensive version verification
-        run: |
-          echo "Running comprehensive version verification script..."
-          chmod +x ./scripts/verify_versions.sh
-          # Export the version environment variables
-          source ./scripts/export_versions.sh
-
-          # Run the verification script but don't fail the job on errors
-          # This allows us to see all issues and still continue with the workflow
-          ./scripts/verify_versions.sh || echo "::warning::Version inconsistencies found - check verify_versions.sh output above"
-
-  build-docker:
-    name: Build and Test Docker Image
-    runs-on: ubuntu-latest
-    needs: [validate, setup, verify-versions]
-    env:
-      HAPROXY_VERSION: ${{ needs.setup.outputs.haproxy_version }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ needs.setup.outputs.go_version }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build and test HAProxy Docker image
+      - name: Build test tool
         run: |
-          echo "Building with HAProxy version: $HAPROXY_VERSION"
-          docker build \
-            --build-arg HAPROXY_VERSION=$HAPROXY_VERSION \
-            -t minio-ratelimit-haproxy:test \
-            -f haproxy/Dockerfile ./haproxy
-          docker run --rm minio-ratelimit-haproxy:test haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg
+          cd cmd/ratelimit-test
+          go build -o build/minio-ratelimit-test *.go
+          ./build/minio-ratelimit-test -h
 
-      - name: Build and test test-tool Docker image
-        run: |
-          echo "Building with Go version: ${{ needs.setup.outputs.go_version }}"
-          docker build \
-            --build-arg GO_VERSION=${{ needs.setup.outputs.go_version }} \
-            -t minio-ratelimit-test:test \
-            -f cmd/ratelimit-test/Dockerfile ./cmd/ratelimit-test
+      - name: Verify versions
+        run: make verify-versions
+        env:
+          CI: true
