@@ -4,9 +4,9 @@ This project has the following version requirements:
 
 | Dependency | Required Version | Notes |
 |------------|------------------|-------|
-| Go | >= ${GO_VERSION} | Used for testing tools and rate limit tests |
-| HAProxy | >= ${HAPROXY_VERSION} | Core component for rate limiting |
-| Lua | >= ${LUA_VERSION} | Used for authentication and rate limiting logic |
+| Go | >= 1.24 | Used for testing tools and rate limit tests |
+| HAProxy | >= 3.0 | Core component for rate limiting |
+| Lua | >= 5.3 | Used for authentication and rate limiting logic |
 | Docker | >= ${DOCKER_MINIMUM_VERSION} | Required for containerized setup |
 | Docker Compose | >= ${DOCKER_COMPOSE_VERSION} | Both v1 and v2 supported (see [Docker Compose Compatibility](#-docker-compose-compatibility)) |
 

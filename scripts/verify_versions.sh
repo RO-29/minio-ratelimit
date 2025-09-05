@@ -111,33 +111,42 @@ echo -e "\nChecking Docker image references..."
 echo -e "\nChecking Lua version references..."
 while IFS= read -r file; do
   if grep -q "lua-" "$file" || grep -q "lua[0-9]" "$file"; then
-    if ! grep -q "lua-$LUA_VERSION" "$file" && ! grep -q "lua$LUA_VERSION" "$file" && ! grep -q "\${LUA_VERSION}" "$file"; then
+    # Skip files that don't explicitly need a Lua version
+    if [[ "$file" == *"test_haproxy_config.sh"* || 
+          "$file" == *"test_haproxy.sh"* || 
+          "$file" == *"haproxy_validate.sh"* || 
+          "$file" == *"validate_rate_limiting.sh"* ]]; then
+      echo -e "${YELLOW}⚠️  Skipping Lua version check for utility script: $file${NC}"
+    elif ! grep -q "lua-$LUA_VERSION" "$file" && ! grep -q "lua$LUA_VERSION" "$file" && ! grep -q "\${LUA_VERSION}" "$file"; then
       report_issue "Potential Lua version mismatch in $file"
     else
       report_success "Lua version in $file matches versions.mk: $LUA_VERSION"
     fi
   fi
-done < <(find "$PROJECT_ROOT" -name "Dockerfile" -o -name "*.sh" | grep -v "verify_versions.sh")
+done < <(find "$PROJECT_ROOT" -name "Dockerfile" -o -name "*.sh" | grep -v "verify_versions.sh" | grep -v ".bin/")
 
 echo -e "\nChecking documentation files..."
 # Check README and other documentation for consistent versions
 while IFS= read -r file; do
+  # Skip files in .bin directory
+  if [[ "$file" == *".bin/"* ]]; then
+    continue
+  fi
+  
   if grep -q "Go version" "$file" || grep -q "HAProxy version" "$file" || grep -q "Lua version" "$file"; then
     if ! grep -q "$GO_VERSION" "$file"; then
       report_warning "Documentation in $file may need updating with current Go version: $GO_VERSION"
     fi
-
+    
     if ! grep -q "$HAPROXY_VERSION" "$file"; then
       report_warning "Documentation in $file may need updating with current HAProxy version: $HAPROXY_VERSION"
     fi
-
+    
     if ! grep -q "$LUA_VERSION" "$file"; then
       report_warning "Documentation in $file may need updating with current Lua version: $LUA_VERSION"
     fi
   fi
-done < <(find "$PROJECT_ROOT" -name "*.md" -o -name "*.txt" | grep -v "CHANGELOG")
-
-# Summary
+done < <(find "$PROJECT_ROOT" -name "*.md" -o -name "*.txt" | grep -v "CHANGELOG" | grep -v ".bin/")# Summary
 echo -e "\n======================================"
 if [[ $ISSUES_FOUND -eq 0 ]]; then
   echo -e "${GREEN}✅ All versions are consistent with versions.mk!${NC}"

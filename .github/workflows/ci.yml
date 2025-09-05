@@ -78,7 +78,7 @@ jobs:
       - name: Install HAProxy for validation
         run: |
           sudo apt-get update
-          sudo apt-get install -y haproxy=${{ needs.setup.outputs.haproxy_version }}* lua${{ needs.setup.outputs.lua_version }} luarocks
+          sudo apt-get install -y haproxy=${{ needs.setup.outputs.haproxy_version }} lua${{ needs.setup.outputs.lua_version }} luarocks
           haproxy -v
           lua -v
 

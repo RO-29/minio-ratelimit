@@ -35,7 +35,7 @@
 # Include centralized version control
 include versions.mk
 
-.PHONY: up down restart reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup cleanup versions update-go-version update-haproxy-version update-versions check-versions verify-versions
+.PHONY: up down restart reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup cleanup versions update-go-version update-haproxy-version update-versions check-versions verify-versions update-all-versions
 
 # Default target
 help:
@@ -89,6 +89,7 @@ help:
 	@echo "  make update-go-version      - Update Go version in all go.mod files"
 	@echo "  make update-haproxy-version - Update HAProxy version in all files"
 	@echo "  make update-versions        - Update all versions throughout the project"
+	@echo "  make update-all-versions    - Update all versions and run verification"
 	@echo "  make verify-versions        - Verify version consistency across the project"
 	@echo "  make check-versions         - Check if environment meets version requirements"
 	@echo ""
@@ -299,6 +300,11 @@ update-haproxy-version:
 update-versions: update-go-version update-haproxy-version verify-versions
 	@echo "🔄 All versions have been updated according to versions.mk"
 	@echo "To verify changes, use: git diff"
+
+# Update all versions and run verification
+update-all-versions: 
+	@echo "🔄 Running comprehensive version update..."
+	@./scripts/update_all_versions.sh
 
 # Verify version consistency across the project
 verify-versions:

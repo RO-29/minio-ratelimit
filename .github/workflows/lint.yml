@@ -27,10 +27,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Extract Go version
+        id: get_version
+        run: |
+          GO_VERSION=$(grep -E '^GO_VERSION :=' versions.mk | sed 's/GO_VERSION := //')
+          echo "go_version=$GO_VERSION" >> $GITHUB_OUTPUT
+          echo "Using Go version: $GO_VERSION"
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '^1.21'
+          go-version: ${{ steps.get_version.outputs.go_version }}
 
       - name: Install golangci-lint
         run: |
@@ -47,10 +54,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Extract HAProxy version
+        id: get_haproxy_version
+        run: |
+          HAPROXY_VERSION=$(grep -E '^HAPROXY_VERSION :=' versions.mk | sed 's/HAPROXY_VERSION := //')
+          echo "haproxy_version=$HAPROXY_VERSION" >> $GITHUB_OUTPUT
+          echo "Using HAProxy version: $HAPROXY_VERSION"
+          
       - name: Install HAProxy
         run: |
           sudo apt-get update
-          sudo apt-get install -y haproxy
+          sudo apt-get install -y haproxy=${{ steps.get_haproxy_version.outputs.haproxy_version }}
 
       - name: Validate HAProxy configuration
         run: |
@@ -64,10 +78,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Extract Lua version
+        id: get_lua_version
+        run: |
+          LUA_VERSION=$(grep -E '^LUA_VERSION :=' versions.mk | sed 's/LUA_VERSION := //')
+          echo "lua_version=$LUA_VERSION" >> $GITHUB_OUTPUT
+          echo "Using Lua version: $LUA_VERSION"
+          
       - name: Install Lua
         run: |
           sudo apt-get update
-          sudo apt-get install -y lua5.3 luarocks
+          sudo apt-get install -y lua${{ steps.get_lua_version.outputs.lua_version }} luarocks
 
       - name: Validate Lua scripts
         run: |
