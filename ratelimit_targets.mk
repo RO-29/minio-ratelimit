@@ -36,7 +36,7 @@ endef
 ratelimit-test-build:
 	@$(call print_styled,$(BLUE),"Building rate limit testing tool...")
 	@mkdir -p cmd/ratelimit-test/build
-	@go build -o cmd/ratelimit-test/build/minio-ratelimit-test ./cmd/ratelimit-test
+	@cd cmd/ratelimit-test && go build -o build/minio-ratelimit-test .
 	@$(call print_styled,$(GREEN),"✅ Rate limit testing tool built successfully")
 
 # Generate test tokens for rate limiting

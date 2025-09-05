@@ -89,7 +89,7 @@ jobs:
         run: |
           source docker-compose-command.sh
           $DOCKER_COMPOSE_CMD down
-          
+
       - name: Report success
         run: |
           echo "✅ Integration tests passed successfully"

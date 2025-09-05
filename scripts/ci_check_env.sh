@@ -51,7 +51,7 @@ fi
 # If no Docker Compose found, install it
 if [ -z "$DOCKER_COMPOSE_FOUND" ]; then
     echo "Installing Docker Compose..."
-    
+
     # Try installing docker-compose-plugin first (for v2)
     if apt-cache show docker-compose-plugin &>/dev/null; then
         sudo apt-get update
@@ -62,7 +62,7 @@ if [ -z "$DOCKER_COMPOSE_FOUND" ]; then
             DOCKER_COMPOSE_FOUND=true
         fi
     fi
-    
+
     # If v2 failed, try installing standalone v1
     if [ -z "$DOCKER_COMPOSE_FOUND" ]; then
         sudo apt-get update

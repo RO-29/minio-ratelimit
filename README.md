@@ -8,7 +8,7 @@ This project implements a comprehensive, production-ready rate limiting solution
 
 - ✅ **Complete S3 Authentication Support**: AWS Signature V2/V4, pre-signed URLs, custom headers
 - ✅ **Fully Dynamic Rate Limiting**: Zero hardcoded values - all limits from map files
-- ✅ **Hot-Reloadable Configuration**: Change limits without HAProxy restart  
+- ✅ **Hot-Reloadable Configuration**: Change limits without HAProxy restart
 - ✅ **Multi-Tier System**: Premium, Standard, Basic, Default tiers with different limits
 - ✅ **Default Group Fallback**: Unknown API keys automatically assigned to default group
 - ✅ **Individual API Key Tracking**: Each API key has its own rate limit counter
@@ -49,7 +49,7 @@ This project implements a comprehensive, production-ready rate limiting solution
           └──────────┬───────────┘
                      │
           ┌─────────────────────┐
-          │    Load Balancer    │  
+          │    Load Balancer    │
           │   (External LB)     │
           └─────────┬───────────┘
                     │
@@ -118,7 +118,7 @@ end
 function check_rate_limit(txn)
     local current_rate_per_minute = tonumber(txn.sf:sc_http_req_rate(0)) or 0
     local limit_per_minute = tonumber(txn:get_var("txn.rate_limit_per_minute"))
-    
+
     if current_rate_per_minute > limit_per_minute then
         txn:set_var("txn.rate_limit_exceeded", "true")
         -- Generate dynamic error message with current limits
@@ -135,7 +135,7 @@ Individual API key rate tracking using HAProxy's memory-based stick tables:
 backend api_key_rates_1m
     stick-table type string len 64 size 100k expire 2m store http_req_rate(1m)
 
-# Per-second burst tracking  
+# Per-second burst tracking
 backend api_key_rates_1s
     stick-table type string len 64 size 100k expire 10s store http_req_rate(1s)
 ```
@@ -314,7 +314,7 @@ HAProxy 3.0 supports hot reloading of map files without restarting the service:
 ```
 # Access Key -> Group mapping
 5HQZO7EDOM4XBNO642GQ premium
-VSLP8GUZ6SPYILLLGHJ0 standard  
+VSLP8GUZ6SPYILLLGHJ0 standard
 FQ4IU19ZFZ3470XJ7GBF basic
 ```
 
@@ -412,7 +412,7 @@ curl -I http://localhost/test-bucket/ \
 ### **Service Endpoints**
 
 - **HAProxy 1**: `http://localhost` (port 80), `https://localhost` (port 443)
-- **HAProxy 2**: `http://localhost:81` (port 81), `https://localhost:444` (port 444)  
+- **HAProxy 2**: `http://localhost:81` (port 81), `https://localhost:444` (port 444)
 - **MinIO**: `http://localhost:9001` (port 9001)
 - **HAProxy Stats**: `http://localhost:8404/stats`
 
@@ -478,7 +478,7 @@ Both MinIO and HAProxy services include properly configured health checks:
 
 # Accounts created:
 # - 12 Premium accounts (2000 req/min, 50 req/sec)
-# - 20 Standard accounts (500 req/min, 25 req/sec) 
+# - 20 Standard accounts (500 req/min, 25 req/sec)
 # - 18 Basic accounts (100 req/min, 10 req/sec)
 ```
 
@@ -515,7 +515,7 @@ Both MinIO and HAProxy services include properly configured health checks:
 
 Map files are automatically updated by management scripts, but can be manually edited:
 
-1. **Edit map file**: `vim haproxy/config/api_key_groups.map`  
+1. **Edit map file**: `vim haproxy/config/api_key_groups.map`
 2. **Hot reload**: `./scripts/manage-dynamic-limits reload`
 3. **Verify**: Check HAProxy logs for reload confirmation
 
@@ -551,7 +551,7 @@ go run main.go
 
 📈 RESULTS BY GROUP:
   PREMIUM tier:  80.0% success, 0.0% limited
-  STANDARD tier: 80.0% success, 3.3% limited  
+  STANDARD tier: 80.0% success, 3.3% limited
   BASIC tier:    57.3% success, 24.1% limited
 
 🔐 AUTH METHODS DETECTED:
@@ -567,7 +567,7 @@ curl -I http://localhost/test-bucket/ \
   -H "Authorization: AWS4-HMAC-SHA256 Credential=5HQZO7EDOM4XBNO642GQ/20250903/us-east-1/s3/aws4_request, SignedHeaders=host, Signature=test"
 ```
 
-#### **Test V2 Authentication**  
+#### **Test V2 Authentication**
 ```bash
 curl -I http://localhost/test-bucket/ \
   -H "Authorization: AWS TESTKEY123456:signature"
@@ -636,7 +636,7 @@ Every response includes comprehensive rate limiting information:
 ```http
 HTTP/1.1 200 OK
 X-RateLimit-Group: premium
-X-API-Key: 5HQZO7EDOM4XBNO642GQ  
+X-API-Key: 5HQZO7EDOM4XBNO642GQ
 X-Auth-Method: v4_header_lua
 X-RateLimit-Limit-Per-Minute: 2000
 X-RateLimit-Limit-Per-Second: 50
@@ -651,7 +651,7 @@ X-Request-ID: unique-uuid
 Access detailed statistics at `http://localhost:8404/stats`:
 
 - **Stick table usage**: API key counters and rates
-- **Backend health**: MinIO server status  
+- **Backend health**: MinIO server status
 - **Request/response metrics**: Success rates, error rates
 - **SSL certificate status**: Expiry dates, cipher info
 
@@ -693,8 +693,8 @@ haproxy1:
   ports:
     - "80:80"    # Primary HTTP
     - "443:443"  # Primary HTTPS
-    
-haproxy2:  
+
+haproxy2:
   ports:
     - "81:80"    # Secondary HTTP
     - "444:443"  # Secondary HTTPS
@@ -719,7 +719,7 @@ External LB Rules:
 
 # For production, replace with real certificates:
 # - Copy cert to haproxy/ssl/certs/haproxy.crt
-# - Copy key to haproxy/ssl/certs/haproxy.key  
+# - Copy key to haproxy/ssl/certs/haproxy.key
 # - Combine: cat haproxy/ssl/certs/haproxy.crt haproxy/ssl/certs/haproxy.key > haproxy/ssl/certs/haproxy.pem
 ```
 
@@ -798,7 +798,7 @@ curl -I http://localhost/test-bucket/ -H "Authorization: AWS key:sig" | grep X-A
 ```
 
 #### **2. Rate Limiting Not Applied**
-```bash  
+```bash
 # Verify API key mapping
 ./scripts/manage-dynamic-limits show-config | grep YOUR_KEY
 
@@ -831,12 +831,12 @@ curl -k -I https://localhost/test-bucket/
 # Increase table size for more API keys
 stick-table type string len 64 size 1000k expire 2m
 
-# Adjust expiry for longer rate windows  
+# Adjust expiry for longer rate windows
 stick-table type string len 64 size 100k expire 5m
 ```
 
 #### **Lua Performance**
-```lua  
+```lua
 -- Cache compiled patterns for better performance
 local aws4_pattern = "^AWS4%-HMAC%-SHA256"
 local credential_pattern = "Credential=([^,]+)"
@@ -862,7 +862,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) file for 
 ## 🤝 **Contributing**
 
 1. Fork the repository
-2. Create a feature branch  
+2. Create a feature branch
 3. Make your changes
 4. Add tests for new functionality
 5. Submit a pull request

@@ -118,26 +118,26 @@ print_styled "$BLUE" "Step 4: Running 'make validate-ratelimit'..."
 if ! make -n validate-ratelimit >/dev/null 2>&1; then
     print_styled "$YELLOW" "⚠️ The validate-ratelimit target seems to be missing dependencies"
     print_styled "$BLUE" "Checking individual components instead..."
-    
+
     # Run the dependencies separately
     make lint-haproxy
     if [ $? -ne 0 ]; then
         print_styled "$RED" "❌ HAProxy validation failed"
         exit 1
     fi
-    
+
     make lint-lua
     if [ $? -ne 0 ]; then
         print_styled "$RED" "❌ Lua validation failed"
         exit 1
     fi
-    
+
     make ratelimit-test-build
     if [ $? -ne 0 ]; then
         print_styled "$RED" "❌ Building rate limiting test tool failed"
         exit 1
     fi
-    
+
     print_styled "$GREEN" "✅ Rate limiting components validated successfully"
 else
     # If the target exists, run it normally
@@ -178,7 +178,7 @@ if [ -z "$DOCKER_COMPOSE_CMD" ]; then
     if docker compose version >/dev/null 2>&1; then
         DC_CMD="docker compose"
     elif command -v docker-compose >/dev/null 2>&1; then
-        DC_CMD="docker-compose" 
+        DC_CMD="docker-compose"
     else
         DC_CMD="docker compose or docker-compose"
     fi

@@ -6,7 +6,7 @@
 print_styled() {
   local color="$1"
   local message="$2"
-  
+
   # Completely disable color in CI or when requested
   if [ -n "$CI" ] || [ -n "$CI_NO_COLOR" ] || [ -n "$NO_COLOR" ] || [ ! -t 1 ]; then
     printf "%s\n" "$message"
@@ -47,7 +47,7 @@ fi
 if command -v docker-compose &>/dev/null; then
     DOCKER_COMPOSE_VERSION=$(docker-compose --version | head -n 1)
     print_styled "green" "✅ Docker Compose v1 is installed: $DOCKER_COMPOSE_VERSION"
-    
+
     if [ "$DOCKER_COMPOSE_FOUND" = false ]; then
         print_styled "blue" "Using command: docker-compose"
         DOCKER_COMPOSE_CMD="docker-compose"
