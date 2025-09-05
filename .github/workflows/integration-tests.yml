@@ -89,3 +89,10 @@ jobs:
         run: |
           source docker-compose-command.sh
           $DOCKER_COMPOSE_CMD down
+          
+      - name: Report success
+        run: |
+          echo "✅ Integration tests passed successfully"
+          echo "Docker Compose version used:"
+          source docker-compose-command.sh
+          echo "$DOCKER_COMPOSE_CMD version"

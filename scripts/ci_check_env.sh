@@ -51,10 +51,31 @@ fi
 # If no Docker Compose found, install it
 if [ -z "$DOCKER_COMPOSE_FOUND" ]; then
     echo "Installing Docker Compose..."
-    sudo apt-get update
-    sudo apt-get install -y docker-compose
-    echo "✓ Docker Compose installed: $(docker-compose --version)"
-    DOCKER_COMPOSE_CMD="docker-compose"
+    
+    # Try installing docker-compose-plugin first (for v2)
+    if apt-cache show docker-compose-plugin &>/dev/null; then
+        sudo apt-get update
+        sudo apt-get install -y docker-compose-plugin
+        if docker compose version &>/dev/null; then
+            echo "✓ Docker Compose v2 plugin installed: $(docker compose version)"
+            DOCKER_COMPOSE_CMD="docker compose"
+            DOCKER_COMPOSE_FOUND=true
+        fi
+    fi
+    
+    # If v2 failed, try installing standalone v1
+    if [ -z "$DOCKER_COMPOSE_FOUND" ]; then
+        sudo apt-get update
+        sudo apt-get install -y docker-compose
+        if docker-compose --version &>/dev/null; then
+            echo "✓ Docker Compose v1 installed: $(docker-compose --version)"
+            DOCKER_COMPOSE_CMD="docker-compose"
+            DOCKER_COMPOSE_FOUND=true
+        else
+            echo "✗ Failed to install Docker Compose"
+            echo "Will try using Docker directly for validation"
+        fi
+    fi
 fi
 
 # Check for HAProxy

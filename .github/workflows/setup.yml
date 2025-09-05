@@ -19,10 +19,10 @@ jobs:
         with:
           go-version: '^1.21'
 
-      - name: Install Dependencies
+      - name: Check CI Environment
         run: |
-          sudo apt-get update
-          sudo apt-get install -y haproxy lua5.3 luarocks
+          chmod +x ./scripts/ci_check_env.sh
+          ./scripts/ci_check_env.sh
 
       - name: Install Go tools
         run: |
@@ -31,6 +31,7 @@ jobs:
       - name: Generate test configurations
         run: |
           mkdir -p ./haproxy/config
+          chmod +x ./scripts/generate_test_tokens.sh
           ./scripts/generate_test_tokens.sh -n 2
 
       - name: Prepare test environment
@@ -50,6 +51,11 @@ jobs:
 
           echo "Verifying golangci-lint installation:"
           golangci-lint --version
+
+          echo "Verifying Docker Compose:"
+          source docker-compose-command.sh
+          echo "Docker Compose command: $DOCKER_COMPOSE_CMD"
+          $DOCKER_COMPOSE_CMD version || true
 
           echo "Verifying test configuration files:"
           ls -la ./haproxy/config/

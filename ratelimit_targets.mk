@@ -1,5 +1,9 @@
 # Rate limiting test targets
 
+# Define paths used for validation
+HAPROXY_CONFIG ?= ./haproxy/haproxy.cfg
+LUA_DIR ?= ./haproxy/lua
+
 # Check for required files for rate limiting
 define check_rate_limiting_files
 	@echo "Checking for required rate limiting files..."
@@ -43,13 +47,13 @@ ratelimit-tokens:
 	@$(call print_styled,$(GREEN),"✅ Test tokens generated successfully")
 
 # Validate complete rate limiting setup
-validate-ratelimit: validate-haproxy validate-lua ratelimit-test-build ratelimit-tokens
+validate-ratelimit: lint-haproxy lint-lua ratelimit-test-build ratelimit-tokens
 	@$(call print_styled,$(BLUE),"=== Validating complete rate limiting setup ===")
 	@$(call check_rate_limiting_files)
 	@$(call check_rate_limiting_config)
 	@$(call print_styled,$(GREEN),"✅ Rate limiting setup validated successfully!")
 	@$(call print_styled,$(BLUE),"Next steps:")
-	@$(call print_styled,$(BLUE),"1. Start the stack: 'docker-compose up' or 'make run'")
+	@$(call print_styled,$(BLUE),"1. Start the stack: '$(DOCKER_COMPOSE_CMD) up' or 'make up'")
 	@$(call print_styled,$(BLUE),"2. Test the rate limiting: './cmd/ratelimit-test/build/minio-ratelimit-test'")
 
 # Run the rate limiting tests (after starting the stack)
