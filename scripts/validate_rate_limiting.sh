@@ -142,8 +142,21 @@ fi
 
 # Docker-based validation (if Docker is available)
 if [ -f "$DOCKER_COMPOSE" ] && docker info >/dev/null 2>&1; then
-  print_styled "$BLUE" "Docker is available - you can run docker-compose up to test full functionality"
-  print_styled "$YELLOW" "⚠️ Full integration tests require running the stack with docker-compose"
+  print_styled "$BLUE" "Docker is available - checking Docker Compose version..."
+
+  # Check for Docker Compose v2 (comes as a Docker plugin)
+  if docker compose version > /dev/null 2>&1; then
+    print_styled "$GREEN" "✅ Docker Compose v2 detected (use 'docker compose up')"
+    DOCKER_COMPOSE_CMD="docker compose"
+  elif docker-compose --version > /dev/null 2>&1; then
+    print_styled "$GREEN" "✅ Docker Compose v1 detected (use 'docker-compose up')"
+    DOCKER_COMPOSE_CMD="docker-compose"
+  else
+    print_styled "$YELLOW" "⚠️ Docker Compose not found - install with 'apt-get install docker-compose'"
+    DOCKER_COMPOSE_CMD="docker-compose"
+  fi
+
+  print_styled "$YELLOW" "⚠️ Full integration tests require running the stack with $DOCKER_COMPOSE_CMD up"
   print_styled "$YELLOW" "⚠️ Then use test clients to verify rate limiting behavior"
 else
   print_styled "$YELLOW" "⚠️ Docker not available or docker-compose file missing - skipping integration test info"
@@ -151,7 +164,7 @@ fi
 
 print_styled "$GREEN" "✅ Comprehensive validation completed!"
 print_styled "$BLUE" "Next steps:"
-print_styled "$BLUE" "1. Run 'docker-compose up' to start the full stack"
+print_styled "$BLUE" "1. Run '${DOCKER_COMPOSE_CMD:-docker compose} up' to start the full stack"
 print_styled "$BLUE" "2. Use './scripts/generate_test_tokens.sh' to create test credentials"
 print_styled "$BLUE" "3. Test rate limiting with './cmd/ratelimit-test/build/minio-ratelimit-test'"
 exit 0

@@ -51,12 +51,36 @@ else
     print_styled "$GREEN" "✅ Found Docker $DOCKER_VERSION"
 fi
 
-# Check for Docker Compose
-if ! command -v docker-compose &> /dev/null; then
-    print_styled "$YELLOW" "⚠️ Docker Compose is not installed (optional but recommended)"
-else
+# Check for Docker Compose (v1 and v2)
+DOCKER_COMPOSE_FOUND=false
+
+# Check for Docker Compose v2 (Docker plugin)
+if docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_VERSION=$(docker compose version | head -n 1)
+    print_styled "$GREEN" "✅ Found Docker Compose v2: $DOCKER_COMPOSE_VERSION"
+    print_styled "$BLUE" "Command to use: docker compose"
+    DOCKER_COMPOSE_CMD="docker compose"
+    DOCKER_COMPOSE_FOUND=true
+fi
+
+# Check for Docker Compose v1 (standalone binary)
+if command -v docker-compose &> /dev/null; then
     DOCKER_COMPOSE_VERSION=$(docker-compose --version | awk '{print $3}' | tr -d ',')
-    print_styled "$GREEN" "✅ Found Docker Compose $DOCKER_COMPOSE_VERSION"
+    print_styled "$GREEN" "✅ Found Docker Compose v1: $DOCKER_COMPOSE_VERSION"
+    print_styled "$BLUE" "Command to use: docker-compose"
+
+    if [ "$DOCKER_COMPOSE_FOUND" = false ]; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+        DOCKER_COMPOSE_FOUND=true
+    else
+        print_styled "$YELLOW" "⚠️ Both Docker Compose v1 and v2 are installed. Using v2 by default."
+    fi
+fi
+
+# If no Docker Compose found
+if [ "$DOCKER_COMPOSE_FOUND" = false ]; then
+    print_styled "$YELLOW" "⚠️ Docker Compose is not installed (optional but recommended)"
+    print_styled "$YELLOW" "Install with: sudo apt-get install docker-compose"
 fi
 
 # Step 2: Check for HAProxy and Lua
@@ -126,7 +150,13 @@ fi
 print_styled "$GREEN" "=== ALL VERIFICATION TESTS COMPLETED SUCCESSFULLY ==="
 print_styled "$BLUE" "Your MinIO rate limiting setup has been verified and all tools are working correctly."
 print_styled "$BLUE" "Next steps:"
-print_styled "$BLUE" "1. Start the stack: 'docker-compose up' or 'make up'"
+
+if [ -n "$DOCKER_COMPOSE_CMD" ]; then
+    print_styled "$BLUE" "1. Start the stack: '$DOCKER_COMPOSE_CMD up' or 'make up'"
+else
+    print_styled "$BLUE" "1. Start the stack: 'docker compose up' or 'docker-compose up' or 'make up'"
+fi
+
 print_styled "$BLUE" "2. Run comprehensive tests: 'make test-all-tiers'"
 print_styled "$BLUE" "3. Try different testing scenarios with 'make test-basic', 'make test-premium', etc."
 

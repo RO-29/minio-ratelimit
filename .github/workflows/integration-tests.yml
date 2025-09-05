@@ -1,0 +1,91 @@
+name: MinIO Rate Limit Integration Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - '**.go'
+      - '**.lua'
+      - 'haproxy/haproxy.cfg'
+      - 'haproxy/config/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/integration-tests.yml'
+  pull_request:
+    branches: [ main, master, develop ]
+    paths:
+      - '**.go'
+      - '**.lua'
+      - 'haproxy/haproxy.cfg'
+      - 'haproxy/config/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/integration-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '^1.21'
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y haproxy lua5.3 luarocks
+
+      - name: Check CI Environment
+        run: |
+          chmod +x ./scripts/ci_check_env.sh
+          ./scripts/ci_check_env.sh
+
+      - name: Generate test configurations
+        run: |
+          mkdir -p ./haproxy/config
+          chmod +x ./scripts/generate_test_tokens.sh
+          ./scripts/generate_test_tokens.sh -n 2
+
+      - name: Prepare test environment
+        run: |
+          # Create certificate directory
+          mkdir -p ./haproxy/certs
+
+          # Generate self-signed certificate for HAProxy
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout ./haproxy/certs/haproxy.pem \
+            -out ./haproxy/certs/haproxy.pem -days 365 -subj "/CN=localhost"
+
+      - name: Run Docker Compose
+        run: |
+          # Get the Docker Compose command from the environment check
+          source docker-compose-command.sh
+
+          # Start the services
+          echo "Using Docker Compose command: $DOCKER_COMPOSE_CMD"
+          $DOCKER_COMPOSE_CMD up -d
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for services to be ready..."
+          sleep 10
+          source docker-compose-command.sh
+          $DOCKER_COMPOSE_CMD ps
+
+      - name: Build test tool
+        run: |
+          cd cmd/ratelimit-test
+          go build -o build/minio-ratelimit-test *.go
+
+      - name: Run basic test
+        run: |
+          cd cmd/ratelimit-test
+          ./build/minio-ratelimit-test -duration=15s -accounts=1 -quick
+
+      - name: Cleanup
+        run: |
+          source docker-compose-command.sh
+          $DOCKER_COMPOSE_CMD down

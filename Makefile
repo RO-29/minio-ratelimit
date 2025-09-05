@@ -80,52 +80,21 @@ help:
 	@echo "  make ratelimit-test     - Run rate limiting tests"
 	@echo "  make ratelimit-tokens   - Generate test tokens for rate limiting"
 
-# Start all services
-up:
-	@echo "Starting all services..."
-	@docker-compose up -d
-	@echo "Services started. HAProxy endpoints:"
-	@echo "  - Main: http://localhost:80"
-	@echo "  - Stats: http://localhost:8404/stats"
-	@echo "  - MinIO Console: http://localhost:9091"
-
-# Stop all services
-down:
-	@echo "Stopping all services..."
-	@docker-compose down
-	@echo "Services stopped"
-
-# Restart all services
-restart:
-	@echo "Restarting all services..."
-	@docker-compose restart
-	@echo "Services restarted"
+# Docker Compose commands are now defined in docker_compose_targets.mk
 
 # Reload HAProxy without stopping containers
 reload: reload-haproxy
 
-# View logs
-logs:
-	@docker-compose logs -f
-
-# Check status
-status:
-	@docker-compose ps
-
-# Clean up
-clean:
-	@echo "Cleaning up Docker resources..."
-	@docker-compose down -v --remove-orphans
-	@echo "Resources cleaned"
+# Docker Compose commands are now defined in docker_compose_targets.mk
 
 # Reload HAProxy configuration
-reload-haproxy:
+reload-haproxy: docker-compose-info
 	@echo "Reloading HAProxy configuration without downtime..."
 	@echo "Reloading HAProxy 1..."
-	@docker-compose exec haproxy1 kill -SIGUSR2 1
+	@$(DOCKER_COMPOSE_CMD) exec haproxy1 kill -SIGUSR2 1
 	@sleep 2
 	@echo "Reloading HAProxy 2..."
-	@docker-compose exec haproxy2 kill -SIGUSR2 1
+	@$(DOCKER_COMPOSE_CMD) exec haproxy2 kill -SIGUSR2 1
 	@echo "HAProxy configuration reloaded"
 
 # Open HAProxy stats in browser
@@ -159,12 +128,12 @@ increase-limits:
 	@echo "Rate limits increased. Remember to reload HAProxy with 'make reload'"
 
 # Update HAProxy map files
-update-maps:
+update-maps: docker-compose-info
 	@echo "Updating HAProxy map files..."
 	@for container in haproxy1 haproxy2; do \
-		docker-compose exec $$container sh -c "cat /usr/local/etc/haproxy/config/rate_limits_per_minute.map | sed 's/\r//' > /tmp/rate_limits_per_minute.map && mv /tmp/rate_limits_per_minute.map /usr/local/etc/haproxy/config/rate_limits_per_minute.map"; \
-		docker-compose exec $$container sh -c "cat /usr/local/etc/haproxy/config/rate_limits_per_second.map | sed 's/\r//' > /tmp/rate_limits_per_second.map && mv /tmp/rate_limits_per_second.map /usr/local/etc/haproxy/config/rate_limits_per_second.map"; \
-		docker-compose exec $$container sh -c "cat /usr/local/etc/haproxy/config/api_key_groups.map | sed 's/\r//' > /tmp/api_key_groups.map && mv /tmp/api_key_groups.map /usr/local/etc/haproxy/config/api_key_groups.map"; \
+		$(DOCKER_COMPOSE_CMD) exec $$container sh -c "cat /usr/local/etc/haproxy/config/rate_limits_per_minute.map | sed 's/\r//' > /tmp/rate_limits_per_minute.map && mv /tmp/rate_limits_per_minute.map /usr/local/etc/haproxy/config/rate_limits_per_minute.map"; \
+		$(DOCKER_COMPOSE_CMD) exec $$container sh -c "cat /usr/local/etc/haproxy/config/rate_limits_per_second.map | sed 's/\r//' > /tmp/rate_limits_per_second.map && mv /tmp/rate_limits_per_second.map /usr/local/etc/haproxy/config/rate_limits_per_second.map"; \
+		$(DOCKER_COMPOSE_CMD) exec $$container sh -c "cat /usr/local/etc/haproxy/config/api_key_groups.map | sed 's/\r//' > /tmp/api_key_groups.map && mv /tmp/api_key_groups.map /usr/local/etc/haproxy/config/api_key_groups.map"; \
 	done
 	@echo "Map files updated. Remember to reload HAProxy with 'make reload'"
 
@@ -176,9 +145,10 @@ update-maps:
 TEST_CMD = cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test
 TEST_RESULTS_DIR = ./cmd/ratelimit-test/results
 
-# Include linting, validation, and rate limiting targets
+# Include linting, validation, rate limiting, and Docker Compose targets
 include linting_targets.mk
 include ratelimit_targets.mk
+include docker_compose_targets.mk
 
 # Ensure results directory exists
 ensure-results-dir:
