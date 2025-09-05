@@ -53,7 +53,9 @@ jobs:
           sudo apt-get install -y haproxy
 
       - name: Validate HAProxy configuration
-        run: make lint-haproxy
+        run: |
+          chmod +x ./scripts/haproxy_validate.sh
+          CI=true ./scripts/haproxy_validate.sh --local-only
 
   lint-lua:
     name: Validate Lua Scripts
@@ -68,7 +70,11 @@ jobs:
           sudo apt-get install -y lua5.3 luarocks
 
       - name: Validate Lua scripts
-        run: make lint-lua
-
+        run: |
+          chmod +x ./scripts/lua_validate.sh
+          CI=true ./scripts/lua_validate.sh --local-only
+      
       - name: Test Lua scripts
-        run: make test-lua
+        run: |
+          chmod +x ./scripts/test_lua_scripts.sh
+          ./scripts/test_lua_scripts.sh

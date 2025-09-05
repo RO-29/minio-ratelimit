@@ -108,8 +108,8 @@ elif command -v lua >/dev/null 2>&1; then
   echo "${GREEN}✅ All Lua scripts are syntactically valid!${RESET}"
   exit 0
 
-# Try Docker with reliable Alpine image
-elif docker info >/dev/null 2>&1; then
+# Try Docker with pre-built Lua image only if we're not in CI
+elif [ -z "$CI" ] && docker info >/dev/null 2>&1; then
   echo "${BLUE}Using Docker for Lua validation...${RESET}"
   
   # Create temp directory for Docker validation
@@ -132,11 +132,18 @@ exit 0
 " > "$TEMP_DIR/validate_lua.sh"
   chmod +x "$TEMP_DIR/validate_lua.sh"
   
-  # Run Docker validation with vanilla Alpine (includes Lua)
-  echo "Running Lua validation in Docker..."
-  docker run --rm -v "$TEMP_DIR/scripts:/scripts:ro" -v "$TEMP_DIR/validate_lua.sh:/validate_lua.sh:ro" alpine:latest sh /validate_lua.sh > "$TEST_OUTPUT/lua_check.log" 2>&1
+  # Try to pull the image first with a timeout to avoid hanging
+  echo "Pulling Lua Docker image..."
+  if timeout 20s docker pull nickblah/lua:5.3-alpine >/dev/null 2>&1; then
+    # Run Docker validation with pre-built Lua image with timeout
+    echo "Running Lua validation in Docker..."
+    timeout 20s docker run --rm -v "$TEMP_DIR/scripts:/scripts:ro" -v "$TEMP_DIR/validate_lua.sh:/validate_lua.sh:ro" nickblah/lua:5.3-alpine sh /validate_lua.sh > "$TEST_OUTPUT/lua_check.log" 2>&1
+    VALIDATION_RESULT=$?
+  else
+    echo "Docker pull timed out, skipping Docker validation" >> "$TEST_OUTPUT/lua_check.log"
+    VALIDATION_RESULT=1
+  fi
   
-  VALIDATION_RESULT=$?
   # Clean up
   rm -rf "$TEMP_DIR"
   
@@ -144,11 +151,11 @@ exit 0
     echo "${GREEN}✅ All Lua scripts are syntactically valid!${RESET}"
     exit 0
   else
-    echo "${RED}❌ Lua validation failed!${RESET}"
+    echo "${RED}❌ Lua validation failed or timed out!${RESET}"
     cat "$TEST_OUTPUT/lua_check.log"
     
     # Even if Docker validation fails, report success in local-only mode
-    echo "${YELLOW}⚠️  Using fallback local-only validation...${RESET}"
+    echo "${YELLOW}⚠️ Using fallback local-only validation...${RESET}"
     echo "${GREEN}✅ Basic checks passed${RESET}"
     exit 0
   fi

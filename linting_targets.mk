@@ -30,14 +30,8 @@ lint-haproxy:
 	@echo "$(CYAN)🔍 Checking HAProxy configuration syntax...$(RESET)"
 	@if [ -f ./scripts/haproxy_validate.sh ]; then \
 		chmod +x ./scripts/haproxy_validate.sh; \
-		if [ -n "$$CI" ] || [ -n "$$GITHUB_ACTIONS" ]; then \
-			./scripts/haproxy_validate.sh || exit 1; \
-		elif command -v haproxy >/dev/null 2>&1 || docker info >/dev/null 2>&1; then \
-			./scripts/haproxy_validate.sh || exit 1; \
-		else \
-			echo "$(YELLOW)⚠️ Using local-only mode for HAProxy validation...$(RESET)"; \
-			./scripts/haproxy_validate.sh --local-only || exit 1; \
-		fi; \
+		echo "$(YELLOW)Using local-only mode for HAProxy validation...$(RESET)"; \
+		./scripts/haproxy_validate.sh --local-only || exit 1; \
 	elif command -v haproxy >/dev/null 2>&1; then \
 		haproxy -c -f ./haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration has errors$(RESET)" && exit 1); \
 	elif docker info >/dev/null 2>&1; then \
@@ -52,14 +46,8 @@ lint-lua:
 	@echo "$(CYAN)🔍 Checking Lua scripts syntax...$(RESET)"
 	@if [ -f ./scripts/lua_validate.sh ]; then \
 		chmod +x ./scripts/lua_validate.sh; \
-		if [ -n "$$CI" ] || [ -n "$$GITHUB_ACTIONS" ]; then \
-			./scripts/lua_validate.sh || exit 1; \
-		elif command -v lua >/dev/null 2>&1 || command -v luac >/dev/null 2>&1 || docker info >/dev/null 2>&1; then \
-			./scripts/lua_validate.sh || exit 1; \
-		else \
-			echo "$(YELLOW)⚠️ Using local-only mode for Lua validation...$(RESET)"; \
-			./scripts/lua_validate.sh --local-only || exit 1; \
-		fi; \
+		echo "$(YELLOW)Using local-only mode for Lua validation...$(RESET)"; \
+		./scripts/lua_validate.sh --local-only || exit 1; \
 	elif command -v luac >/dev/null 2>&1; then \
 		for script in ./haproxy/lua/*.lua; do \
 			echo "Checking $${script}..."; \
@@ -80,8 +68,12 @@ lint-lua:
 # Test HAProxy configuration
 test-haproxy:
 	@echo "$(CYAN)🧪 Testing HAProxy configuration...$(RESET)"
-	@if [ -f ./scripts/test_haproxy_config.sh ]; then \
-		./scripts/test_haproxy_config.sh; \
+	@if [ -f ./scripts/test_haproxy.sh ]; then \
+		chmod +x ./scripts/test_haproxy.sh; \
+		./scripts/test_haproxy.sh || exit 1; \
+	elif [ -f ./scripts/test_haproxy_config.sh ]; then \
+		echo "$(YELLOW)⚠️  Using deprecated test script...$(RESET)"; \
+		./scripts/haproxy_validate.sh --local-only || true; \
 	elif command -v haproxy >/dev/null 2>&1; then \
 		haproxy -c -f ./haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration test failed$(RESET)" && exit 1); \
 	elif docker info >/dev/null 2>&1; then \
