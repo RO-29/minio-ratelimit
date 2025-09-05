@@ -6,7 +6,7 @@
 print_styled() {
   local color="$1"
   local message="$2"
-  
+
   # Completely disable color in CI or when requested
   if [ -n "$CI" ] || [ -n "$CI_NO_COLOR" ] || [ -n "$NO_COLOR" ] || [ ! -t 1 ]; then
     printf "%s\n" "$message"

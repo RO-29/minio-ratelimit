@@ -73,7 +73,7 @@ jobs:
         run: |
           chmod +x ./scripts/lua_validate.sh
           CI=true CI_NO_COLOR=true ./scripts/lua_validate.sh --local-only
-      
+
       - name: Test Lua scripts
         run: |
           chmod +x ./scripts/test_lua_scripts.sh

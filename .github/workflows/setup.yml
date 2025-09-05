@@ -74,11 +74,11 @@ jobs:
 
           # Run the validation with colors disabled
           CI=true CI_NO_COLOR=true ./scripts/haproxy_validate.sh
-          
+
       - name: Run Lua validation explicitly
         run: |
           chmod +x ./scripts/lua_validate.sh
-          
+
           # Run the validation using local lua since it's installed in the GitHub runner
           CI=true CI_NO_COLOR=true ./scripts/lua_validate.sh
 

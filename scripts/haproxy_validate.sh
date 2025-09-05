@@ -6,7 +6,7 @@
 print_styled() {
   local color="$1"
   local message="$2"
-  
+
   # Completely disable color in CI or when requested
   if [ -n "$CI" ] || [ -n "$CI_NO_COLOR" ] || [ -n "$NO_COLOR" ] || [ ! -t 1 ]; then
     printf "%s\n" "$message"
@@ -50,8 +50,24 @@ print_styled "$BLUE" "=== HAProxy Configuration Validation ==="
 
 # Check if config file exists
 if [ ! -f "$HAPROXY_CONFIG" ]; then
-  echo "${RED}❌ HAProxy configuration file not found: $HAPROXY_CONFIG${RESET}"
+  print_styled "$RED" "❌ HAProxy configuration file not found: $HAPROXY_CONFIG"
   exit 1
+fi
+
+# Check HAProxy version when available
+if command -v haproxy >/dev/null 2>&1; then
+  HAPROXY_VERSION=$(haproxy -v | head -n 1)
+  print_styled "$BLUE" "Detected HAProxy: $HAPROXY_VERSION"
+
+  if ! echo "$HAPROXY_VERSION" | grep -q "3\.[0-9]"; then
+    print_styled "$YELLOW" "⚠️  Warning: Recommended HAProxy version is 3.0 or later"
+  else
+    print_styled "$GREEN" "✅ Using recommended HAProxy version (3.x)"
+  fi
+elif docker info >/dev/null 2>&1; then
+  # Try to get HAProxy version from Docker
+  DOCKER_HAPROXY_VERSION=$(docker run --rm haproxy:3.0 haproxy -v 2>/dev/null | head -n 1 || echo "Unknown")
+  print_styled "$BLUE" "Docker HAProxy version: $DOCKER_HAPROXY_VERSION"
 fi
 
 # Local-only mode just checks basic syntax

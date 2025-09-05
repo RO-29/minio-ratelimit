@@ -74,6 +74,11 @@ help:
 	@echo "  make validate-all      - Run all validation checks"
 	@echo "  make ci-test           - Run tests for CI environment"
 	@echo "  make ci-validate       - Run validations for CI environment"
+	@echo ""
+	@echo "Rate limiting specific:"
+	@echo "  make validate-ratelimit - Validate complete rate limiting setup"
+	@echo "  make ratelimit-test     - Run rate limiting tests"
+	@echo "  make ratelimit-tokens   - Generate test tokens for rate limiting"
 
 # Start all services
 up:
@@ -171,8 +176,9 @@ update-maps:
 TEST_CMD = cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test
 TEST_RESULTS_DIR = ./cmd/ratelimit-test/results
 
-# Include linting and validation targets
+# Include linting, validation, and rate limiting targets
 include linting_targets.mk
+include ratelimit_targets.mk
 
 # Ensure results directory exists
 ensure-results-dir:

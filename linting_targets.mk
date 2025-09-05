@@ -14,12 +14,12 @@ endif
 # Colors for prettier output - disable if in CI
 ifdef CI
   # Disable colors in CI environments
-  CYAN := 
-  GREEN := 
-  YELLOW := 
-  RED := 
-  BLUE := 
-  RESET := 
+  CYAN :=
+  GREEN :=
+  YELLOW :=
+  RED :=
+  BLUE :=
+  RESET :=
   export CI_NO_COLOR := true
 else
   CYAN := \033[36m
