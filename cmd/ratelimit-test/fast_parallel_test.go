@@ -16,7 +16,7 @@ func TestParseFlags(t *testing.T) {
 		ExportJSON:      false,
 		OutputFile:      "rate_limit_test_results.json",
 		Verbose:         false,
-		ConfigFile:      "../../config/generated_service_accounts.json",
+		ConfigFile:      "haproxy/config/generated_service_accounts.json",
 	}
 
 	// Test default values

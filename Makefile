@@ -140,17 +140,17 @@ test-limits:
 backup-configs:
 	@echo "Backing up configuration files..."
 	@mkdir -p ./backups/$(shell date +%Y%m%d_%H%M%S)
-	@cp ./haproxy.cfg ./backups/$(shell date +%Y%m%d_%H%M%S)/
-	@cp ./extract_api_keys.lua ./backups/$(shell date +%Y%m%d_%H%M%S)/
-	@cp ./dynamic_rate_limiter.lua ./backups/$(shell date +%Y%m%d_%H%M%S)/
-	@cp -r ./config ./backups/$(shell date +%Y%m%d_%H%M%S)/
+	@cp ./haproxy/haproxy.cfg ./backups/$(shell date +%Y%m%d_%H%M%S)/
+	@cp ./haproxy/lua/extract_api_keys.lua ./backups/$(shell date +%Y%m%d_%H%M%S)/
+	@cp ./haproxy/lua/dynamic_rate_limiter.lua ./backups/$(shell date +%Y%m%d_%H%M%S)/
+	@cp -r ./haproxy/config ./backups/$(shell date +%Y%m%d_%H%M%S)/
 	@echo "Backup created in ./backups/$(shell date +%Y%m%d_%H%M%S)/"
 
 # Increase premium rate limits
 increase-limits:
 	@echo "Increasing premium rate limits..."
-	@sed -i '' 's/premium [0-9]*/premium 10000/' ./config/rate_limits_per_minute.map
-	@sed -i '' 's/premium [0-9]*/premium 200/' ./config/rate_limits_per_second.map
+	@sed -i '' 's/premium [0-9]*/premium 10000/' ./haproxy/config/rate_limits_per_minute.map
+	@sed -i '' 's/premium [0-9]*/premium 200/' ./haproxy/config/rate_limits_per_second.map
 	@echo "Rate limits increased. Remember to reload HAProxy with 'make reload'"
 
 # Update HAProxy map files
@@ -168,7 +168,7 @@ update-maps: docker-compose-info
 #
 
 # Define variables for test commands
-TEST_CMD = cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test
+TEST_CMD = cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json
 TEST_RESULTS_DIR = ./test-results
 
 # Include linting, validation, rate limiting, and Docker Compose targets
@@ -184,7 +184,7 @@ ensure-results-dir:
 test-basic: ensure-results-dir
 	@echo "🧪 Running tests for BASIC tier accounts only..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -tiers=basic -duration=60s -accounts=5 > ../../test-results/basic_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -tiers=basic -duration=60s -accounts=5 > ../../test-results/basic_results.json
 	@echo "✅ Basic tier testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/basic_results.json"
 
@@ -192,7 +192,7 @@ test-basic: ensure-results-dir
 test-standard: ensure-results-dir
 	@echo "🧪 Running tests for STANDARD tier accounts only..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -tiers=standard -duration=60s -accounts=5 > ../../test-results/standard_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -tiers=standard -duration=60s -accounts=5 > ../../test-results/standard_results.json
 	@echo "✅ Standard tier testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/standard_results.json"
 
@@ -200,7 +200,7 @@ test-standard: ensure-results-dir
 test-premium: ensure-results-dir
 	@echo "🧪 Running tests for PREMIUM tier accounts only..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -tiers=premium -duration=60s -accounts=5 > ../../test-results/premium_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -tiers=premium -duration=60s -accounts=5 > ../../test-results/premium_results.json
 	@echo "✅ Premium tier testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/premium_results.json"
 
@@ -208,7 +208,7 @@ test-premium: ensure-results-dir
 test-stress: ensure-results-dir
 	@echo "💪 Running PREMIUM STRESS test to find actual limits..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -stress-premium -duration=120s -accounts=5 > ../../test-results/stress_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -stress-premium -duration=120s -accounts=5 > ../../test-results/stress_results.json
 	@echo "✅ Premium stress testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/stress_results.json"
 
@@ -216,7 +216,7 @@ test-stress: ensure-results-dir
 test-quick: ensure-results-dir
 	@echo "🚀 Running QUICK test (15s duration)..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=15s -accounts=2 > ../../test-results/quick_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -duration=15s -accounts=2 > ../../test-results/quick_results.json
 	@echo "✅ Quick testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/quick_results.json"
 
@@ -224,7 +224,7 @@ test-quick: ensure-results-dir
 test-extended: ensure-results-dir
 	@echo "⏰ Running EXTENDED test (5m duration)..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=5m -accounts=3 > ../../test-results/extended_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -duration=5m -accounts=3 > ../../test-results/extended_results.json
 	@echo "✅ Extended testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/extended_results.json"
 
@@ -232,7 +232,7 @@ test-extended: ensure-results-dir
 test-export: ensure-results-dir
 	@echo "📊 Running test with DETAILED JSON export..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=60s -accounts=3 -json -output=../../test-results/detailed_export.json > ../../test-results/test_output.log
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -duration=60s -accounts=3 -json -output=../../test-results/detailed_export.json > ../../test-results/test_output.log
 	@echo "✅ Testing with JSON export complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/detailed_export.json"
 
@@ -240,7 +240,7 @@ test-export: ensure-results-dir
 test-all-tiers: ensure-results-dir
 	@echo "🔬 Running COMPREHENSIVE tests across ALL TIERS..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=90s -accounts=3 -tiers=basic,standard,premium -json -output=../../test-results/all_tiers_results.json > ../../test-results/all_tiers_output.log
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -duration=90s -accounts=3 -tiers=basic,standard,premium -json -output=../../test-results/all_tiers_results.json > ../../test-results/all_tiers_output.log
 	@echo "✅ All-tier comprehensive testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/all_tiers_results.json"
 
@@ -256,7 +256,7 @@ test-custom: ensure-results-dir
 		export_option="-json -output=../../test-results/custom_results.json"; \
 	fi; \
 	cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go; \
-	./build/minio-ratelimit-test -duration=$$duration -accounts=$$accounts -tiers=$$tiers $$export_option > ../../test-results/custom_output.log
+	./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -duration=$$duration -accounts=$$accounts -tiers=$$tiers $$export_option > ../../test-results/custom_output.log
 	@echo "✅ Custom testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/custom_output.log"
 

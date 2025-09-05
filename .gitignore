@@ -6,3 +6,4 @@ scripts/cleanup.sh
 test-results/
 docker-results/
 coverage/
+cmd/ratelimite-test/*.json

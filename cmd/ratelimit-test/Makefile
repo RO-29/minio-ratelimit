@@ -4,9 +4,20 @@
 # Define build directory and binary name
 BUILD_DIR := build
 BINARY_NAME := minio-ratelimit-test
-CONFIG_FILE := ../../haproxy/config/generated_service_accounts.json
 DOCKER_IMAGE := minio-ratelimit-test:latest
 TEST_DURATION := 30s
+
+# Auto-detect if we're running from root or cmd/ratelimit-test directory
+ifeq ($(shell test -f haproxy/config/generated_service_accounts.json && echo "root"), root)
+    CONFIG_FILE := haproxy/config/generated_service_accounts.json
+    PROJECT_ROOT := .
+else ifeq ($(shell test -f ../../haproxy/config/generated_service_accounts.json && echo "subdir"), subdir)
+    CONFIG_FILE := ../../haproxy/config/generated_service_accounts.json
+    PROJECT_ROOT := ../..
+else
+    CONFIG_FILE := haproxy/config/generated_service_accounts.json
+    PROJECT_ROOT := .
+endif
 
 .PHONY: help setup clean build test unit-test docker-build docker-run docker-test \
         stress-test quick-test json-export show-test-summary lint coverage \
@@ -69,25 +80,25 @@ coverage: setup ## Generate test coverage
 test: build ## Run MinIO rate limiting test (local mode)
 	@echo "$(CYAN)🧪 Running MinIO rate limiting test...$(RESET)"
 	@echo "$(BLUE)🧪 Running comprehensive test ($(TEST_DURATION))...$(RESET)"
-	@./$(BUILD_DIR)/$(BINARY_NAME) -duration=$(TEST_DURATION) > comprehensive_results.json
+	@./$(BUILD_DIR)/$(BINARY_NAME) -config=$(CONFIG_FILE) -duration=$(TEST_DURATION) > comprehensive_results.json
 	@echo "$(GREEN)✅ Test completed - results saved to comprehensive_results.json$(RESET)"
 	@$(MAKE) show-test-summary
 
 quick-test: build ## Run a quick test with minimal duration
 	@echo "$(CYAN)🚀 Running quick test (10s)...$(RESET)"
-	@./$(BUILD_DIR)/$(BINARY_NAME) -duration=10s -accounts=1 > quick_test_results.json
+	@./$(BUILD_DIR)/$(BINARY_NAME) -config=$(CONFIG_FILE) -duration=10s -accounts=1 > quick_test_results.json
 	@echo "$(GREEN)✅ Quick test completed - results saved to quick_test_results.json$(RESET)"
 	@python3 -c "import json; data=json.load(open('quick_test_results.json')); print(f\"Total Requests: {data['summary']['TotalRequests']}\"); print(f\"Success Rate: {round(data['summary']['TotalSuccess']/data['summary']['TotalRequests']*100,1)}%\");" 2>/dev/null || echo "$(YELLOW)⚠️  Could not parse results$(RESET)"
 
 stress-test: build ## Run stress test focusing on premium tier
 	@echo "$(CYAN)💪 Running premium stress test...$(RESET)"
-	@./$(BUILD_DIR)/$(BINARY_NAME) -stress-premium -duration=60s > stress_test_results.json
+	@./$(BUILD_DIR)/$(BINARY_NAME) -config=$(CONFIG_FILE) -stress-premium -duration=60s > stress_test_results.json
 	@echo "$(GREEN)✅ Stress test completed - results saved to stress_test_results.json$(RESET)"
 	@$(MAKE) show-test-summary FILE=stress_test_results.json
 
 json-export: build ## Run test with JSON export enabled
 	@echo "$(CYAN)📊 Running test with detailed JSON export...$(RESET)"
-	@./$(BUILD_DIR)/$(BINARY_NAME) -duration=$(TEST_DURATION) -json -output=detailed_results.json > test_output.log
+	@./$(BUILD_DIR)/$(BINARY_NAME) -config=$(CONFIG_FILE) -duration=$(TEST_DURATION) -json -output=detailed_results.json > test_output.log
 	@echo "$(GREEN)✅ Test with JSON export completed!$(RESET)"
 
 show-test-summary: ## Show quick test results summary
