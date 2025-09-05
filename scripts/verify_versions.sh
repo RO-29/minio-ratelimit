@@ -55,6 +55,11 @@ echo -e "\nChecking Docker image references..."
 
   # Check HAProxy version in Docker files
   while IFS= read -r file; do
+    # Skip .bin directory
+    if [[ "$file" == *".bin/"* ]]; then
+      continue
+    fi
+    
     if grep -q "haproxy:" "$file"; then
       # Check for variable references like ${HAPROXY_VERSION} or $HAPROXY_VERSION
       # Also check for variable references with default values like ${HAPROXY_VERSION:-3.0}
