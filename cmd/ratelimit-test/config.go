@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 // Configuration for test execution
@@ -54,6 +56,8 @@ func parseFlags() TestConfig {
 	for i, tier := range config.TargetTiers {
 		config.TargetTiers[i] = strings.TrimSpace(tier)
 	}
+
+	spew.Dump(config)
 
 	return config
 }

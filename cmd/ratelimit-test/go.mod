@@ -6,6 +6,7 @@ toolchain go1.24.5
 
 require (
 	github.com/aws/aws-sdk-go v1.44.327
+	github.com/davecgh/go-spew v1.1.1
 	github.com/minio/minio-go/v7 v7.0.61
 )
 

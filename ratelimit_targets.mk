@@ -43,7 +43,7 @@ ratelimit-test-build:
 ratelimit-tokens:
 	@$(call print_styled,$(BLUE),"Generating test tokens for rate limiting...")
 	@mkdir -p haproxy/config
-	@./scripts/generate_test_tokens.sh
+	@./scripts/generate-minio-service-accounts.sh
 	@$(call print_styled,$(GREEN),"✅ Test tokens generated successfully")
 
 # Validate complete rate limiting setup

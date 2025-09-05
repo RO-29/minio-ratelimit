@@ -9,7 +9,7 @@ import (
 type ServiceAccount struct {
 	AccessKey string `json:"access_key"`
 	SecretKey string `json:"secret_key"`
-	Group     string `json:"tier"`
+	Group     string `json:"group"`
 }
 
 // TestResult holds the results of a single test run
