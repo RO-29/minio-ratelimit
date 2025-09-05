@@ -139,11 +139,19 @@ ci-setup:
 	@if [ -f ./scripts/check_versions.sh ]; then \
 		./scripts/check_versions.sh || (echo "$(RED)❌ Environment does not meet version requirements$(RESET)" && exit 1); \
 	fi
-	@mkdir -p ./cmd/ratelimit-test/build ./cmd/ratelimit-test/results ./test-results
+	@mkdir -p ./cmd/ratelimit-test/build ./cmd/ratelimit-test/results ./test-results ./haproxy/config
 	@cd ./cmd/ratelimit-test && go mod tidy
 	@if [ -z "$(shell which golangci-lint)" ] && [ ! -z "$(shell which go)" ]; then \
 		echo "$(YELLOW)Installing golangci-lint...$(RESET)"; \
 		GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+	fi
+	@echo "$(CYAN)Generating service accounts for testing...$(RESET)"
+	@if [ ! -f ./haproxy/config/generated_service_accounts.json ]; then \
+		chmod +x ./scripts/generate-minio-service-accounts.sh; \
+		./scripts/generate-minio-service-accounts.sh || ( \
+			echo "$(YELLOW)⚠️  Service account generation failed, creating minimal config for CI$(RESET)"; \
+			echo '{"service_accounts": [{"access_key": "TESTKEY123456789", "secret_key": "testsecret123456789", "group": "basic"}], "metadata": {"total_accounts": 1}}' > ./haproxy/config/generated_service_accounts.json; \
+		); \
 	fi
 	@echo "$(GREEN)✅ CI setup complete!$(RESET)"
 
