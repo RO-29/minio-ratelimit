@@ -100,8 +100,12 @@ func compareResults(name1 string, result1 *TestResults, name2 string, result2 *T
 	fmt.Printf("Comparing: \n - %s\n - %s\n\n", name1, name2)
 
 	// Print summary comparison
-	fmt.Fprintf(w, "METRIC\t%s\t%s\tDIFFERENCE\t%%CHANGE\n", shortName1, shortName2)
-	fmt.Fprintf(w, "------\t------\t------\t----------\t-------\n")
+	if _, err := fmt.Fprintf(w, "METRIC\t%s\t%s\tDIFFERENCE\t%%CHANGE\n", shortName1, shortName2); err != nil {
+		fmt.Println("Error writing to output:", err)
+	}
+	if _, err := fmt.Fprintf(w, "------\t------\t------\t----------\t-------\n"); err != nil {
+		fmt.Println("Error writing to output:", err)
+	}
 
 	// Key metrics
 	compareMetric(w, "Total Requests", result1.Summary.TotalRequests, result2.Summary.TotalRequests)
@@ -112,7 +116,9 @@ func compareResults(name1 string, result1 *TestResults, name2 string, result2 *T
 	compareMetric(w, "Max RPS", result1.Summary.MaxRPS, result2.Summary.MaxRPS)
 	compareMetric(w, "Duration (s)", result1.Summary.TestDuration, result2.Summary.TestDuration)
 
-	w.Flush()
+	if err := w.Flush(); err != nil {
+		fmt.Println("Error flushing output:", err)
+	}
 
 	// Print tier breakdowns if available
 	fmt.Println("\n📊 TIER BREAKDOWN COMPARISON")
@@ -138,16 +144,24 @@ func compareResults(name1 string, result1 *TestResults, name2 string, result2 *T
 	for _, tier := range tierNames {
 		fmt.Printf("\n🔶 %s TIER\n", strings.ToUpper(tier))
 		w = tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', tabwriter.AlignRight)
-		fmt.Fprintf(w, "METRIC\t%s\t%s\tDIFFERENCE\t%%CHANGE\n", shortName1, shortName2)
-		fmt.Fprintf(w, "------\t------\t------\t----------\t-------\n")
+		if _, err := fmt.Fprintf(w, "METRIC\t%s\t%s\tDIFFERENCE\t%%CHANGE\n", shortName1, shortName2); err != nil {
+			fmt.Println("Error writing to output:", err)
+		}
+		if _, err := fmt.Fprintf(w, "------\t------\t------\t----------\t-------\n"); err != nil {
+			fmt.Println("Error writing to output:", err)
+		}
 
 		tier1 := result1.Summary.TierBreakdown[tier]
 		tier2 := result2.Summary.TierBreakdown[tier]
 
 		if tier1.Accounts == 0 {
-			fmt.Fprintf(w, "Note: No %s tier accounts in %s\n", tier, shortName1)
+			if _, err := fmt.Fprintf(w, "Note: No %s tier accounts in %s\n", tier, shortName1); err != nil {
+				fmt.Println("Error writing to output:", err)
+			}
 		} else if tier2.Accounts == 0 {
-			fmt.Fprintf(w, "Note: No %s tier accounts in %s\n", tier, shortName2)
+			if _, err := fmt.Fprintf(w, "Note: No %s tier accounts in %s\n", tier, shortName2); err != nil {
+				fmt.Println("Error writing to output:", err)
+			}
 		} else {
 			compareMetric(w, "Accounts", tier1.Accounts, tier2.Accounts)
 			compareMetric(w, "Requests", tier1.Requests, tier2.Requests)
@@ -157,7 +171,9 @@ func compareResults(name1 string, result1 *TestResults, name2 string, result2 *T
 			compareMetric(w, "Max RPS", tier1.MaxRPS, tier2.MaxRPS)
 		}
 
-		w.Flush()
+		if err := w.Flush(); err != nil {
+			fmt.Println("Error flushing output:", err)
+		}
 	}
 
 	fmt.Println("\n🏁 Comparison complete!")
@@ -171,7 +187,9 @@ func compareMetric(w *tabwriter.Writer, name string, val1, val2 interface{}) {
 	case int:
 		v2, ok := val2.(int)
 		if !ok {
-			fmt.Fprintf(w, "%s\t%d\t%v\tIncomparable\t-\n", name, v1, val2)
+			if _, err := fmt.Fprintf(w, "%s\t%d\t%v\tIncomparable\t-\n", name, v1, val2); err != nil {
+				fmt.Println("Error writing to output:", err)
+			}
 			return
 		}
 		delta := v2 - v1
@@ -184,12 +202,16 @@ func compareMetric(w *tabwriter.Writer, name string, val1, val2 interface{}) {
 			diff = "+" + diff
 		}
 		percent = fmt.Sprintf("%.1f%%", pct)
-		fmt.Fprintf(w, "%s\t%d\t%d\t%s\t%s\n", name, v1, v2, diff, percent)
+		if _, err := fmt.Fprintf(w, "%s\t%d\t%d\t%s\t%s\n", name, v1, v2, diff, percent); err != nil {
+			fmt.Println("Error writing to output:", err)
+		}
 
 	case float64:
 		v2, ok := val2.(float64)
 		if !ok {
-			fmt.Fprintf(w, "%s\t%.2f\t%v\tIncomparable\t-\n", name, v1, val2)
+			if _, err := fmt.Fprintf(w, "%s\t%.2f\t%v\tIncomparable\t-\n", name, v1, val2); err != nil {
+				fmt.Println("Error writing to output:", err)
+			}
 			return
 		}
 		delta := v2 - v1
@@ -202,10 +224,14 @@ func compareMetric(w *tabwriter.Writer, name string, val1, val2 interface{}) {
 			diff = "+" + diff
 		}
 		percent = fmt.Sprintf("%.1f%%", pct)
-		fmt.Fprintf(w, "%s\t%.2f\t%.2f\t%s\t%s\n", name, v1, v2, diff, percent)
+		if _, err := fmt.Fprintf(w, "%s\t%.2f\t%.2f\t%s\t%s\n", name, v1, v2, diff, percent); err != nil {
+			fmt.Println("Error writing to output:", err)
+		}
 
 	default:
-		fmt.Fprintf(w, "%s\t%v\t%v\t-\t-\n", name, val1, val2)
+		if _, err := fmt.Fprintf(w, "%s\t%v\t%v\t-\t-\n", name, val1, val2); err != nil {
+			fmt.Println("Error writing to output:", err)
+		}
 	}
 }
 
