@@ -2,20 +2,21 @@
 
 ## 📋 Table of Contents
 1. [Project Organization](#project-organization)
-2. [System Architecture](#system-architecture)
-3. [HAProxy 3.0 Core Features](#haproxy-30-core-features)
-4. [Dynamic Rate Limiting Engine](#dynamic-rate-limiting-engine)
-5. [Lua Authentication Engine](#lua-authentication-engine)
-6. [Request Processing Flow](#request-processing-flow)
-7. [Stick Tables Deep Dive](#stick-tables-deep-dive)
-8. [Fully Dynamic Architecture](#fully-dynamic-architecture)
-9. [Hot Reloading Internals](#hot-reloading-internals)
-10. [SSL/TLS Implementation](#ssltls-implementation)
-11. [Memory Management](#memory-management)
-12. [Performance Analysis](#performance-analysis)
-13. [Performance Optimizations](#performance-optimizations)
-14. [Production Deployment](#production-deployment)
-15. [Advanced Troubleshooting](#advanced-troubleshooting)
+2. [Version Management](#version-management)
+3. [System Architecture](#system-architecture)
+4. [HAProxy 3.0 Core Features](#haproxy-30-core-features)
+5. [Dynamic Rate Limiting Engine](#dynamic-rate-limiting-engine)
+6. [Lua Authentication Engine](#lua-authentication-engine)
+7. [Request Processing Flow](#request-processing-flow)
+8. [Stick Tables Deep Dive](#stick-tables-deep-dive)
+9. [Fully Dynamic Architecture](#fully-dynamic-architecture)
+10. [Hot Reloading Internals](#hot-reloading-internals)
+11. [SSL/TLS Implementation](#ssltls-implementation)
+12. [Memory Management](#memory-management)
+13. [Performance Analysis](#performance-analysis)
+14. [Performance Optimizations](#performance-optimizations)
+15. [Production Deployment](#production-deployment)
+16. [Advanced Troubleshooting](#advanced-troubleshooting)
 
 ---
 
@@ -106,6 +107,80 @@ The project supports a streamlined development workflow:
 3. **Validation**: Comprehensive validation suite
 4. **Testing**: Performance and functional testing tools
 5. **Deployment**: Production-ready Docker Compose setup
+
+---
+
+## Version Management
+
+### Centralized Version Control System
+
+The project implements a comprehensive centralized version control system to ensure consistency across all components, testing environments, and CI/CD pipelines. This system is built around a central `versions.mk` file and supporting tools that propagate version requirements across the project.
+
+### Core Components
+
+#### 1. Central Version Declaration (`versions.mk`)
+
+```makefile
+# Go version settings
+GO_VERSION := 1.24
+GO_TOOLCHAIN_VERSION := 1.24.5
+
+# Lua version settings
+LUA_VERSION := 5.3
+
+# HAProxy version settings
+HAPROXY_VERSION := 3.0
+
+# Docker settings
+DOCKER_COMPOSE_VERSION := 2.26.0
+DOCKER_MINIMUM_VERSION := 20.10.0
+
+# MinIO version settings
+MINIO_VERSION := RELEASE.2025-04-22T22-12-26Z
+```
+
+#### 2. Management Tools
+
+The version management system provides several tools and commands:
+
+- **Version Information**: `make versions` displays current version requirements and installed versions
+- **Environment Validation**: `make check-versions` validates if the environment meets requirements
+- **Update Mechanisms**: 
+  - `make update-go-version`: Updates Go version in go.mod files
+  - `make update-haproxy-version`: Updates HAProxy version references
+  - `make update-versions`: Updates all versions throughout the project
+
+#### 3. Supporting Scripts
+
+- **Go Version Management**: `scripts/update_go_version.sh` updates Go versions in go.mod files
+- **HAProxy Version Management**: `scripts/update_haproxy_version.sh` updates HAProxy version references
+- **Version Validation**: `scripts/check_versions.sh` validates the environment against requirements
+
+### CI/CD Integration
+
+The version management system integrates with CI/CD pipelines to ensure consistent environments:
+
+```yaml
+env:
+  # These values are sourced from versions.mk
+  GO_VERSION: 1.24
+  LUA_VERSION: 5.3
+  HAPROXY_VERSION: 3.0
+  DOCKER_COMPOSE_VERSION: 2.26.0
+  DOCKER_MINIMUM_VERSION: 20.10.0
+```
+
+### Version Update Process
+
+When updating a dependency version:
+
+1. Update the corresponding version in `versions.mk`
+2. Run `make update-versions` to propagate changes
+3. Test locally with `make check-versions`
+4. Verify all functionality with the new versions
+5. Commit changes and create a pull request
+
+For additional details on the version management system, see [docs/VERSION_MANAGEMENT.md](./docs/VERSION_MANAGEMENT.md).
 
 ---
 

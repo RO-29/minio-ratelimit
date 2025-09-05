@@ -1,0 +1,95 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  # These values are sourced from versions.mk
+  GO_VERSION: 1.24
+  LUA_VERSION: 5.3
+  HAPROXY_VERSION: 3.0
+  DOCKER_COMPOSE_VERSION: 2.26.0
+  DOCKER_MINIMUM_VERSION: 20.10.0
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '${{ env.GO_VERSION }}'
+          check-latest: true
+
+      - name: Set up Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: '${{ env.LUA_VERSION }}'
+
+      - name: Install Luarocks
+        uses: leafo/gh-actions-luarocks@v4
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Verify dependency versions
+        run: |
+          echo "Verifying versions:"
+          echo "Go: $(go version)"
+          echo "Lua: $(lua -v)"
+          echo "Docker: $(docker --version)"
+          echo "Docker Compose: $(docker compose version)"
+      
+      - name: Set up project
+        run: make ci-setup
+      
+      - name: Lint
+        run: make lint
+      
+      - name: Test
+        run: make ci-test
+      
+      - name: Validate
+        run: make validate-all
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build and Export HAProxy Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./haproxy
+          file: ./haproxy/Dockerfile
+          tags: haproxy:${{ env.HAPROXY_VERSION }}-custom
+          outputs: type=docker,dest=/tmp/haproxy-image.tar
+          build-args: |
+            HAPROXY_VERSION=${{ env.HAPROXY_VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Upload HAProxy Image Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: haproxy-image
+          path: /tmp/haproxy-image.tar
+          retention-days: 1
