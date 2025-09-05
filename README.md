@@ -950,6 +950,27 @@ openssl x509 -in haproxy/ssl/certs/haproxy.crt -text -noout
 curl -k -I https://localhost/test-bucket/
 ```
 
+#### **5. CI/CD Pipeline Issues**
+```bash
+# Local CI simulation
+make ci-setup && make ci-validate
+
+# Test Docker Compose command detection
+./scripts/generate-minio-service-accounts.sh
+
+# Verify version consistency
+make verify-versions
+
+# Run the same integration tests as CI
+make up && make test-quick && make down
+```
+
+**Common CI Issues:**
+- **Service account generation fails**: Ensure Docker Compose is available and detectable
+- **Test results path errors**: Check that `test-results/` directory is created correctly  
+- **Go slice bounds panic**: Update to latest version with `safeKeyPrefix` helper function
+- **Coverage file missing**: Verify paths in `linting_targets.mk` are correct
+
 ### **Performance Tuning**
 
 #### **Stick Table Optimization**
@@ -995,6 +1016,34 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) file for 
 6. Submit a pull request
 
 **CI/CD**: The project uses a consolidated GitHub Actions workflow (`.github/workflows/ci.yml`) that automatically runs linting, testing, integration tests, and version verification on all pull requests.
+
+### **Continuous Integration**
+
+The project uses a streamlined CI pipeline with the following jobs:
+
+1. **Setup**: Version extraction and environment validation
+2. **Lint & Test**: Code quality and unit tests (runs in parallel)
+3. **Integration Tests**: Full system validation with Docker Compose
+4. **Build**: Final verification and artifact creation
+
+All CI jobs use existing `make` commands for consistency with local development:
+
+```bash
+# CI Setup (generates service accounts in CI environment)
+make ci-setup
+
+# Linting and validation
+make ci-validate
+
+# Integration testing
+make validate-all
+make up && make test-quick && make down
+
+# Build verification
+make verify-versions
+```
+
+The CI workflow automatically detects Docker Compose version (v1 vs v2) and provides comprehensive test result artifacts for debugging CI failures.
 
 For major changes, please open an issue first to discuss the proposed changes.
 

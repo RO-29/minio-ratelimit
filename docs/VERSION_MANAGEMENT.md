@@ -79,6 +79,103 @@ The version management system includes tools to verify version consistency:
 
 For detailed information about the version verification system, see [VERSION_VERIFICATION.md](./VERSION_VERIFICATION.md).
 
+## CI/CD Integration
+
+### Automated Version Management in CI Pipeline
+
+The consolidated CI workflow integrates deeply with the version management system to ensure consistency across all build environments:
+
+#### **Version Extraction in CI**
+
+The CI pipeline's `setup` job extracts version information directly from `versions.mk` and makes it available to all downstream jobs:
+
+```yaml
+- name: Extract version information
+  id: extract_versions
+  run: |
+    source ./scripts/export_versions.sh 2>/dev/null || true
+    
+    GO_VERSION=$(grep -E '^GO_VERSION :=' versions.mk | sed 's/GO_VERSION := //')
+    HAPROXY_VERSION=$(grep -E '^HAPROXY_VERSION :=' versions.mk | sed 's/HAPROXY_VERSION := //')
+    MINIO_VERSION=$(grep -E '^MINIO_VERSION :=' versions.mk | sed 's/MINIO_VERSION := //')
+    
+    echo "go_version=$GO_VERSION" >> $GITHUB_OUTPUT
+    echo "haproxy_version=$HAPROXY_VERSION" >> $GITHUB_OUTPUT  
+    echo "minio_version=$MINIO_VERSION" >> $GITHUB_OUTPUT
+```
+
+#### **Version Usage Across CI Jobs**
+
+All CI jobs reference the extracted version information to ensure consistency:
+
+```yaml
+jobs:
+  lint:
+    needs: setup
+    steps:
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ needs.setup.outputs.go_version }}
+
+  integration-test:
+    needs: [lint, setup]
+    env:
+      HAPROXY_VERSION: ${{ needs.setup.outputs.haproxy_version }}
+      MINIO_VERSION: ${{ needs.setup.outputs.minio_version }}
+```
+
+#### **Automated Version Validation**
+
+The CI system includes multiple checkpoints for version validation:
+
+1. **Setup Job**: Runs `make check-versions` to validate the CI environment meets requirements
+2. **Build Job**: Executes `make verify-versions` to ensure version consistency across all project files
+3. **Integration Tests**: Uses extracted versions to ensure proper component compatibility
+
+#### **CI-Specific Version Handling**
+
+The CI system handles version detection gracefully in automated environments:
+
+- **Docker Compose Detection**: Automatically detects and uses appropriate Docker Compose version (v1 vs v2)
+- **Go Module Validation**: Ensures all go.mod files reference the correct Go version from `versions.mk`
+- **Environment Compatibility**: Validates that the CI environment can meet all version requirements
+
+#### **Version Mismatch Prevention**
+
+The CI pipeline prevents version mismatches through:
+
+- **Early Detection**: Version validation occurs in the setup phase before any builds
+- **Consistent Extraction**: All jobs use the same version extraction method
+- **Automated Updates**: Version update scripts are validated to maintain consistency
+- **Verification Gates**: Build job includes comprehensive version verification before completion
+
+#### **Local CI Simulation**
+
+Developers can simulate CI version handling locally:
+
+```bash
+# Extract versions like CI does
+source ./scripts/export_versions.sh
+
+# Validate versions like CI setup job
+make check-versions
+
+# Run version verification like CI build job  
+make verify-versions
+
+# Check specific version consistency
+make update-go-version --dry-run    # Preview changes
+make update-haproxy-version --dry-run
+```
+
+### Version Management Best Practices for CI
+
+1. **Update versions.mk first**: Always update the central version file before committing changes
+2. **Test locally**: Run `make check-versions` and `make verify-versions` locally before pushing
+3. **Monitor CI**: Watch for version-related failures in the CI pipeline
+4. **Automate updates**: Use the provided scripts rather than manual file edits
+5. **Document changes**: Version updates should be clearly documented in commit messages
+
 ## Environment Version Checking
 
 To check if your local environment meets the version requirements:

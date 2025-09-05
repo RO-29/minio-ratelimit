@@ -43,7 +43,31 @@ This script will:
 
 The validation suite supports both local and Docker-based validation, automatically falling back to Docker if local tools are not available.
 
-### 2. Individual Validation Steps
+### 2. CI/CD Validation
+
+For CI environments, use the specialized CI targets:
+
+```bash
+# Setup CI environment (detects Docker Compose, generates service accounts)
+make ci-setup
+
+# Run CI-specific validation (proper output formatting, no colors)
+make ci-validate  
+
+# Run CI-specific tests (proper path resolution, coverage generation)
+make ci-test
+
+# Complete validation suite for CI
+make validate-all
+```
+
+These commands are designed for automated environments and include:
+- Docker Compose version detection (v1 vs v2)
+- Minimal service account generation for testing
+- Proper path resolution for CI artifacts
+- No colored output for better CI log readability
+
+### 3. Individual Validation Steps
 
 #### Validate HAProxy Configuration
 
@@ -184,6 +208,135 @@ If rate limiting is not working as expected:
 2. Check that stick tables are correctly configured
 3. Verify Lua scripts are correctly loaded
 4. Test with different rate limits to ensure thresholds are working
+
+### CI/CD Pipeline Issues
+
+If CI validation fails, follow these troubleshooting steps:
+
+#### Service Account Generation Failures
+```bash
+# Test Docker Compose detection locally
+./scripts/generate-minio-service-accounts.sh
+
+# Check if Docker Compose is available
+docker compose version || docker-compose --version
+
+# Manually trigger CI setup
+make ci-setup
+```
+
+**Common causes:**
+- Docker daemon not running in CI environment
+- Docker Compose command not found or not in PATH
+- Insufficient permissions to create files in CI environment
+
+#### Test Path Resolution Issues
+```bash
+# Verify test results directory creation
+make ensure-results-dir
+
+# Test the same paths used by CI
+cd cmd/ratelimit-test
+go build -o build/minio-ratelimit-test *.go
+./build/minio-ratelimit-test -duration=15s -accounts=2 > ../../test-results/quick_results.json
+
+# Check if files were created
+ls -la ../../test-results/
+```
+
+**Common causes:**
+- Incorrect relative paths when changing directories
+- Test results directory not created before writing files
+- Permissions issues in CI environment
+
+#### Version Mismatch Errors
+```bash
+# Simulate CI version validation locally
+source ./scripts/export_versions.sh
+make check-versions
+make verify-versions
+
+# Check specific version files
+grep GO_VERSION versions.mk
+find . -name "go.mod" -exec grep "^go " {} +
+```
+
+**Common causes:**
+- `versions.mk` not updated after dependency changes
+- Go modules referencing incorrect Go version
+- HAProxy version references out of sync
+
+#### Go Slice Bounds Panics
+```bash
+# Test with empty API keys (common CI issue)
+cd cmd/ratelimit-test
+go test -v ./... 
+
+# Check for unsafe string slicing
+grep -r "accessKey\[:8\]" . || echo "Safe slicing implemented"
+```
+
+**Common causes:**
+- Empty API keys in test configurations
+- Unsafe string slicing without length checks
+- Test data generation not handling edge cases
+
+#### Coverage and Artifact Issues
+```bash
+# Test coverage generation locally
+make ci-test
+
+# Verify coverage file paths
+ls -la ./test-results/coverage.out
+ls -la ./cmd/ratelimit-test/coverage.out
+
+# Test artifact paths used by CI
+ls -la ./test-results/
+```
+
+**Common causes:**
+- Coverage files generated in wrong directory
+- Artifact upload paths don't match actual file locations
+- Path resolution differs between local and CI environments
+
+### Local CI Simulation
+
+To simulate the complete CI workflow locally:
+
+```bash
+# Run the full CI pipeline locally
+make ci-setup       # Same as CI setup job
+make ci-validate    # Same as CI lint job  
+make ci-test        # Same as CI test job
+make validate-all   # Same as CI integration-test job
+make up
+make test-quick
+make down
+make verify-versions # Same as CI build job
+```
+
+This allows you to catch CI issues before pushing changes.
+
+### CI Debugging Commands
+
+Useful commands for debugging CI-specific issues:
+
+```bash
+# Check Docker Compose command detection
+scripts/generate-minio-service-accounts.sh --dry-run
+
+# Verify version extraction like CI does
+source ./scripts/export_versions.sh && env | grep VERSION
+
+# Test service account generation in CI mode
+CI=true make ci-setup
+
+# Validate path handling
+make test-quick && ls -la test-results/
+
+# Check for slice bounds issues
+cd cmd/ratelimit-test && go test -race ./...
+```
 
 ## References
 

@@ -18,6 +18,11 @@
 #   make backup-configs   - Backup all configuration files
 #   make increase-limits  - Increase premium rate limits
 #
+# CI/CD specific:
+#   make ci-setup         - Setup CI environment
+#   make ci-test          - Run tests for CI
+#   make ci-validate      - Run validations for CI
+#
 # Advanced testing scenarios:
 #   make test-basic       - Test only basic tier accounts
 #   make test-standard    - Test only standard tier accounts
@@ -80,8 +85,11 @@ help:
 	@echo "  make test-haproxy      - Test HAProxy configuration"
 	@echo "  make test-lua          - Test Lua scripts"
 	@echo "  make validate-all      - Run all validation checks"
-	@echo "  make ci-test           - Run tests for CI environment"
-	@echo "  make ci-validate       - Run validations for CI environment"
+	@echo ""
+	@echo "CI/CD specific commands:"
+	@echo "  make ci-setup          - Setup CI environment (generates service accounts, detects Docker Compose)"
+	@echo "  make ci-test           - Run tests for CI environment with proper path resolution"
+	@echo "  make ci-validate       - Run validations for CI environment with appropriate formatting"
 	@echo ""
 	@echo "Project management:"
 	@echo "  make cleanup                - Clean up and organize project files into .bin directory"

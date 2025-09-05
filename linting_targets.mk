@@ -33,6 +33,13 @@ endif
 #
 # Linting and Validation Targets
 #
+# CI-specific targets (ci-setup, ci-test, ci-validate) are designed for
+# automated environments and include:
+# - Docker Compose version detection (v1 vs v2)
+# - Service account generation for testing
+# - Proper path resolution for CI environments
+# - Artifact-friendly output formatting
+#
 
 # Run all linting checks
 lint: lint-go lint-haproxy lint-lua

@@ -16,7 +16,8 @@
 13. [Performance Analysis](#performance-analysis)
 14. [Performance Optimizations](#performance-optimizations)
 15. [Production Deployment](#production-deployment)
-16. [Advanced Troubleshooting](#advanced-troubleshooting)
+16. [CI/CD Integration](#cicd-integration)
+17. [Advanced Troubleshooting](#advanced-troubleshooting)
 
 ---
 
@@ -1503,6 +1504,205 @@ http-response set-header X-Frame-Options DENY
 http-response set-header X-XSS-Protection "1; mode=block"
 http-response set-header Referrer-Policy "strict-origin-when-cross-origin"
 ```
+
+---
+
+## CI/CD Integration
+
+### 🚀 Consolidated CI Pipeline
+
+The project uses a streamlined GitHub Actions workflow that consolidates multiple previously separate workflows into a single comprehensive pipeline. This approach eliminates duplication, improves maintainability, and ensures consistent use of make commands across all CI operations.
+
+#### **Pipeline Architecture**
+
+```
+┌─────────────────┐
+│     Setup       │  ◄─── Version extraction and validation
+│   (parallel)    │       Environment preparation
+└─────────┬───────┘
+          │
+    ┌─────────────────┐
+    │   Lint & Test   │  ◄─── Code quality and unit tests
+    │   (parallel)    │       Coverage generation
+    └─────────┬───────┘
+              │
+    ┌─────────────────┐
+    │ Integration     │  ◄─── Full system validation
+    │    Tests        │       Docker Compose testing
+    └─────────┬───────┘
+              │
+    ┌─────────────────┐
+    │     Build       │  ◄─── Final verification
+    │  Verification   │       Artifact creation
+    └─────────────────┘
+```
+
+#### **Job Orchestration**
+
+The CI pipeline consists of 4 orchestrated jobs that ensure proper dependency management and parallel execution where possible:
+
+**1. Setup Job**
+- Extracts version information from `versions.mk`
+- Validates environment requirements
+- Outputs version information for downstream jobs
+- Provides early failure detection for version mismatches
+
+**2. Lint & Test Jobs (Parallel)**
+- **Lint Job**: Code quality validation using `make ci-validate`
+- **Test Job**: Unit tests with coverage using `make ci-test`
+- Both jobs depend on setup and run in parallel for efficiency
+
+**3. Integration Test Job**
+- Depends on successful completion of lint job
+- Runs full system validation with `make validate-all`
+- Starts services with `make up`
+- Executes integration tests with `make test-quick`
+- Properly cleans up services with `make down` using `if: always()`
+
+**4. Build Job**
+- Final verification step depending on both lint and test jobs
+- Builds test tools and verifies functionality
+- Performs version consistency checks with `make verify-versions`
+
+#### **CI-Specific Make Targets**
+
+The CI system uses specialized make targets designed for automated environments:
+
+```bash
+# CI Environment Setup
+make ci-setup
+# - Detects CI environment automatically
+# - Generates minimal service account configuration for testing
+# - Handles Docker Compose version detection (v1 vs v2)
+# - Creates necessary test directories
+
+# CI Validation Suite  
+make ci-validate
+# - Runs comprehensive linting and validation
+# - Uses CI-appropriate output formatting
+# - Generates test coverage reports in correct locations
+
+# CI Testing
+make ci-test  
+# - Executes unit tests with coverage
+# - Properly handles path resolution in CI environments
+# - Outputs results to artifact-friendly locations
+```
+
+#### **Docker Compose Version Detection**
+
+The CI system handles both Docker Compose v1 and v2 automatically:
+
+```bash
+# Service account generation script detects available command
+DOCKER_COMPOSE_CMD="docker compose"
+if ! docker compose version > /dev/null 2>&1; then
+    if docker-compose --version > /dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+    fi
+fi
+```
+
+This ensures compatibility across different CI environments and local development setups.
+
+#### **Error Prevention and Recovery**
+
+The CI system includes several error prevention mechanisms implemented during consolidation:
+
+**1. Safe String Handling**
+```go
+// Helper function to prevent slice bounds panics
+func safeKeyPrefix(accessKey string) string {
+    if len(accessKey) > 8 {
+        return accessKey[:8]
+    } else if len(accessKey) == 0 {
+        return "TESTKEY"
+    }
+    return accessKey
+}
+```
+
+**2. Path Resolution**
+```makefile
+# Fixed path handling for test results
+test-quick: ensure-results-dir
+    @cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=15s -accounts=2 > ../../test-results/quick_results.json
+```
+
+**3. Service Account Generation**
+```bash
+# CI-specific minimal configuration
+if [ -n "$CI" ]; then
+    echo "CI environment detected, creating minimal config for testing"
+    echo '{"service_accounts": [...], "metadata": {"total_accounts": 2}}' > ./haproxy/config/generated_service_accounts.json
+fi
+```
+
+#### **Artifact Management**
+
+The CI system properly handles test results and build artifacts:
+
+- **Test Results**: Stored in `test-results/` directory with proper artifact upload configuration
+- **Coverage Reports**: Generated in correct paths for artifact collection
+- **Build Outputs**: Test tools built and verified before artifact creation
+- **Integration Results**: Comprehensive test output preserved for debugging
+
+#### **Version Management Integration**
+
+The CI system integrates closely with the centralized version management:
+
+```yaml
+# Version extraction from versions.mk
+- name: Extract version information
+  id: extract_versions
+  run: |
+    GO_VERSION=$(grep -E '^GO_VERSION :=' versions.mk | sed 's/GO_VERSION := //')
+    HAPROXY_VERSION=$(grep -E '^HAPROXY_VERSION :=' versions.mk | sed 's/HAPROXY_VERSION := //')
+    # ... output to GITHUB_OUTPUT for downstream jobs
+```
+
+All jobs use the extracted version information to ensure consistency across the entire CI pipeline.
+
+#### **Troubleshooting CI Issues**
+
+Common CI issues and their solutions:
+
+**Service Account Generation Failures**
+- Ensure Docker Compose is available and detectable  
+- Check that the detection script can execute docker commands
+- Verify Docker daemon is running in CI environment
+
+**Test Path Resolution Issues**
+- Confirm `test-results/` directory creation in make targets
+- Verify relative path handling when changing directories
+- Check artifact upload paths match actual file locations
+
+**Version Mismatch Errors**
+- Run `make check-versions` locally to verify environment
+- Update `versions.mk` if requirements have changed
+- Ensure all go.mod files reference correct Go version
+
+**Slice Bounds Panics**
+- Verify all string slicing operations use `safeKeyPrefix` helper
+- Check for empty API keys in test configurations
+- Ensure proper validation of input parameters
+
+#### **Local CI Simulation**
+
+Developers can simulate the entire CI pipeline locally:
+
+```bash
+# Run the complete CI workflow
+make ci-setup
+make ci-validate
+make validate-all
+make up
+make test-quick
+make down
+make verify-versions
+```
+
+This allows for comprehensive testing before pushing changes and reduces CI failure rates.
 
 ---
 
