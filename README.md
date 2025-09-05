@@ -771,15 +771,43 @@ minio-ratelimit/
 │   └── ssl/
 │       └── certs/                 # Generated SSL certificates
 ├── scripts/
+│   ├── cleanup.sh                 # Project organization and cleanup utility
+│   ├── check_docker_compose.sh    # Docker Compose version checker
 │   ├── generate-minio-service-accounts.sh # Real MinIO service account generator
-│   ├── generate-ssl-haproxy-certificates.sh   # SSL certificate generation
-│   └── manage-dynamic-limits      # Unified configuration management script
+│   ├── generate-ssl-haproxy-certificates.sh # SSL certificate generation
+│   ├── generate_test_tokens.sh    # Test token generator
+│   ├── haproxy_validate.sh        # HAProxy configuration validator
+│   ├── lua_validate.sh            # Lua scripts syntax validator
+│   ├── manage-dynamic-limits      # Unified configuration management script
+│   ├── test_haproxy.sh            # HAProxy configuration tester
+│   └── verify_all.sh              # Complete validation suite
+├── cmd/
+│   └── ratelimit-test/            # Fast parallel testing framework
+│       ├── build/                 # Compiled binary location
+│       ├── results/               # Test results output directory
+│       ├── main.go                # Optimized 60-second test suite
+│       ├── go.mod                 # Go module dependencies
+│       └── go.sum                 # Go module checksums
+├── config/                        # Base configuration templates
 ├── docker-compose.yml             # Production deployment setup
-└── cmd/
-    └── ratelimit-test/            # Fast parallel testing framework
-        ├── main.go                # Optimized 60-second test suite
-        ├── go.mod                 # Go module dependencies
-        └── go.sum                 # Go module checksums
+├── docker_compose_targets.mk      # Docker Compose Makefile targets
+├── linting_targets.mk             # Linting and validation Makefile targets
+├── ratelimit_targets.mk           # Rate limiting test Makefile targets
+├── Makefile                       # Main project Makefile
+├── README.md                      # This file
+├── TECHNICAL_DOCUMENTATION.md     # Technical deep dive documentation
+├── VALIDATION_GUIDE.md            # Testing and validation guide
+└── .bin/                          # Archived resources and development tools
+    ├── archived_scripts/          # Old script versions
+    ├── backups/                   # Configuration backups
+    ├── build_artifacts/           # Build outputs
+    ├── debug_tools/               # Development debugging tools
+    ├── development_tools/         # Development utilities
+    ├── docs_archive/              # Historical documentation
+    ├── old_configs/               # Previous configurations
+    ├── old_lua_scripts/           # Previous Lua script versions
+    ├── test_data/                 # Test datasets
+    └── test_results/              # Historical test results
 ```
 
 ---
