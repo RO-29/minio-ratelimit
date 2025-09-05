@@ -26,8 +26,12 @@
 #   make test-quick       - Run a quick test (15s duration)
 #   make test-extended    - Run an extended test (5m duration)
 #   make test-export      - Run test and export detailed JSON results
+#
+# Project management:
+#   make cleanup          - Clean up and organize project files into .bin directory
+#   make clean            - Clean up Docker resources
 
-.PHONY: up down restart reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup
+.PHONY: up down restart reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup cleanup
 
 # Default target
 help:
@@ -74,6 +78,9 @@ help:
 	@echo "  make validate-all      - Run all validation checks"
 	@echo "  make ci-test           - Run tests for CI environment"
 	@echo "  make ci-validate       - Run validations for CI environment"
+	@echo ""
+	@echo "Project management:"
+	@echo "  make cleanup           - Clean up and organize project files into .bin directory"
 	@echo ""
 	@echo "Rate limiting specific:"
 	@echo "  make validate-ratelimit - Validate complete rate limiting setup"
@@ -242,3 +249,9 @@ compare-results:
 	echo "Comparing $${file1} with $${file2}..."; \
 	cd ./cmd/ratelimit-test && go run ./scripts/compare_results.go -file1=$(TEST_RESULTS_DIR)/$$file1 -file2=$(TEST_RESULTS_DIR)/$$file2
 	@echo "✅ Comparison complete!"
+
+# Clean up and organize project files
+cleanup:
+	@echo "🧹 Cleaning up project files..."
+	@./scripts/cleanup.sh
+	@echo "✅ Project cleanup complete!"
