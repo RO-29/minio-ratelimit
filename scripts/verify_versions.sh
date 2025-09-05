@@ -47,7 +47,7 @@ while IFS= read -r -d '' file; do
   if [[ "$file" == *".bin/"* ]]; then
     continue
   fi
-  
+
   go_version=$(grep -E '^go ' "$file" | awk '{print $2}')
   if [[ "$go_version" != "$GO_VERSION" ]]; then
     report_issue "Go version mismatch in $file: found $go_version, expected $GO_VERSION"

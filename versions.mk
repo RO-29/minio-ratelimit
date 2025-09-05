@@ -10,6 +10,7 @@ GO_TOOLCHAIN_VERSION := 1.24.5
 LUA_VERSION := 5.3
 
 # HAProxy version settings
+# Using HAProxy 3.0 as required
 HAPROXY_VERSION := 3.0
 
 # Docker settings

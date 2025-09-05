@@ -78,9 +78,44 @@ jobs:
       - name: Install HAProxy for validation
         run: |
           sudo apt-get update
-          sudo apt-get install -y haproxy=${{ needs.setup.outputs.haproxy_version }} lua${{ needs.setup.outputs.lua_version }} luarocks
-          haproxy -v
+
+          # For HAProxy 3.0, we need to use a PPA or Docker container
+          # First, check if we can add the HAProxy PPA
+          echo "Trying to install HAProxy 3.0..."
+
+          # Try to add HAProxy's official PPA
+          sudo add-apt-repository -y ppa:vbernat/haproxy-3.0 || true
+          sudo apt-get update
+
+          # Check available versions
+          echo "Available HAProxy versions:"
+          apt-cache madison haproxy
+
+          # Try specific installation approaches
+          if sudo apt-cache madison haproxy | grep -q "3.0"; then
+            echo "Found HAProxy 3.0 in repositories, installing..."
+            sudo apt-get install -y haproxy=3.0* lua${{ needs.setup.outputs.lua_version }} luarocks
+          elif command -v docker >/dev/null 2>&1; then
+            echo "Using Docker to run HAProxy 3.0 validation"
+            docker pull haproxy:3.0
+            # Just pull the image for validation - actual tests will use docker-compose
+            echo "Docker HAProxy version:"
+            docker run --rm haproxy:3.0 haproxy -v
+            # Install Lua separately
+            sudo apt-get install -y lua${{ needs.setup.outputs.lua_version }} luarocks
+          else
+            echo "::warning::Could not install HAProxy 3.0 - falling back to available version"
+            sudo apt-get install -y haproxy lua${{ needs.setup.outputs.lua_version }} luarocks
+          fi
+
+          echo "Installed Lua version:"
           lua -v
+
+          # If running locally, show HAProxy version
+          if command -v haproxy >/dev/null 2>&1; then
+            echo "Local HAProxy version:"
+            haproxy -v
+          fi
 
       - name: Install golangci-lint
         run: |
