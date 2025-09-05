@@ -1,98 +1,117 @@
 # Version Management System
 
-This document describes the centralized version management system implemented for the MinIO Rate Limiting project.
+This document describes the centralized version management system for the MinIO Rate Limiting project. The system is designed to ensure consistency in version information across all project components.
 
 ## Overview
 
-The version management system ensures consistency across all components and environments by:
+The MinIO Rate Limiting project uses multiple technologies including:
 
-1. Centralizing version declarations in a single `versions.mk` file
-2. Providing tools to check and update versions throughout the project
-3. Integrating with CI/CD pipelines to ensure version consistency
+- Go programming language
+- Lua scripting language
+- HAProxy
+- Docker and Docker Compose
+- MinIO server
 
-## Core Components
+To maintain consistency and make upgrades easier, all version information is centralized in a single file (`versions.mk`). This approach simplifies updating versions and ensures that all components use compatible versions.
 
-### 1. `versions.mk`
+## Centralized Version File
 
-The central configuration file that defines all version requirements:
+The core of the version management system is the `versions.mk` file at the root of the project. This file contains all version information used throughout the project:
 
 ```makefile
-# Go version settings
+# Centralized Version Control
 GO_VERSION := 1.24
 GO_TOOLCHAIN_VERSION := 1.24.5
-
-# Lua version settings
 LUA_VERSION := 5.3
-
-# HAProxy version settings
 HAPROXY_VERSION := 3.0
-
-# Docker settings
 DOCKER_COMPOSE_VERSION := 2.26.0
 DOCKER_MINIMUM_VERSION := 20.10.0
-
-# MinIO version settings
 MINIO_VERSION := RELEASE.2025-04-22T22-12-26Z
 ```
 
-### 2. Version Management Commands
+## Updating Versions
 
-The following Makefile targets are available:
+To update versions, simply edit the `versions.mk` file and run the appropriate update commands:
 
-- `make versions`: Display current version requirements and installed versions
-- `make check-versions`: Validate if the environment meets version requirements
-- `make update-go-version`: Update Go version in all go.mod files
-- `make update-haproxy-version`: Update HAProxy version across all files
-- `make update-versions`: Update all versions throughout the project
+### Commands for Version Management
 
-### 3. Version Update Scripts
+| Command                     | Description                                  |
+|-----------------------------|----------------------------------------------|
+| `make versions`             | Display all current version information      |
+| `make check-versions`       | Verify that your environment meets requirements |
+| `make verify-versions`      | Check version consistency across the project |
+| `make update-go-version`    | Update Go version in all go.mod files        |
+| `make update-haproxy-version` | Update HAProxy version in all project files |
+| `make update-versions`      | Run all version update scripts               |
 
-- `scripts/update_go_version.sh`: Updates Go version in go.mod files
-- `scripts/update_haproxy_version.sh`: Updates HAProxy version references
-- `scripts/update_all_versions.sh`: Master script to update all versions
-- `scripts/check_versions.sh`: Validates environment against requirements
+### Updating Go Version
 
-### 4. CI/CD Integration
+When you update the Go version in `versions.mk`:
 
-The CI pipeline template (`.github/workflows/ci.yml.template`) sources version values from `versions.mk` to ensure consistent testing and building environments.
+1. Run `make update-go-version` to update all go.mod files
+2. The script will modify:
+   - All go.mod files in the project to use the new version
+   - Dockerfiles that reference Go versions
+   - Documentation that references Go versions
 
-## Usage
+### Updating HAProxy Version
 
-### For Developers
+When you update the HAProxy version:
 
-1. To view current versions:
-   ```bash
-   make versions
-   ```
+1. Run `make update-haproxy-version`
+2. The script will update:
+   - Docker Compose files
+   - Dockerfiles
+   - Documentation
 
-2. To check if your environment meets requirements:
-   ```bash
-   make check-versions
-   ```
+## Version Verification
 
-3. To update versions after changing `versions.mk`:
-   ```bash
-   make update-versions
-   ```
+The version management system includes tools to verify version consistency:
 
-### For CI/CD
+1. **CI Verification**: The CI workflow automatically checks that all versions are consistent with the central configuration.
 
-1. The CI pipeline automatically uses the versions defined in `versions.mk`
-2. Version checks are part of the CI setup process
+2. **Local Verification**: Run `make verify-versions` to check version consistency across all project files. This command:
+   - Checks Go versions in go.mod files
+   - Verifies HAProxy version references in Docker files
+   - Examines MinIO version references
+   - Reviews Lua version references
+   - Validates documentation for correct version information
 
-## Version Update Process
+For detailed information about the version verification system, see [VERSION_VERIFICATION.md](./VERSION_VERIFICATION.md).
 
-When a dependency needs to be updated:
+## Environment Version Checking
 
-1. Update the corresponding version in `versions.mk`
-2. Run `make update-versions` to propagate changes
-3. Test locally with `make check-versions`
-4. Commit changes and create a pull request
+To check if your local environment meets the version requirements:
 
-## Benefits
+1. Run `make check-versions`
+2. The script will check:
+   - Installed Go version
+   - Installed Lua version
+   - Installed HAProxy version
+   - Docker version
+   - Docker Compose version
 
-- Single source of truth for all version requirements
-- Consistent development, testing, and production environments
-- Simplified dependency management and updates
-- Reduced "works on my machine" issues
-- Better tracking of version dependencies across components
+## Version Export
+
+For scripts that need access to version information:
+
+1. Source the export script: `source ./scripts/export_versions.sh`
+2. This will export all version variables to your environment
+
+## Best Practices
+
+1. **Always update versions.mk first**: When upgrading any component, start by updating the central version file.
+2. **Run verification after updates**: After updating versions, run `make verify-versions` to ensure all components are updated.
+3. **Use CI checks**: The CI pipeline will verify version consistency on each commit.
+4. **Document version changes**: Include version changes in commit messages and update the CHANGELOG.md file.
+
+## Version Related Files
+
+| File                          | Purpose                                   |
+|-------------------------------|-------------------------------------------|
+| `versions.mk`                 | Central version definitions               |
+| `scripts/update_go_version.sh`| Script to update Go version in all files  |
+| `scripts/update_haproxy_version.sh` | Update HAProxy version in all files |
+| `scripts/check_versions.sh`   | Check installed versions against requirements |
+| `scripts/verify_versions.sh`  | Verify version consistency across the project |
+| `scripts/export_versions.sh`  | Export versions as environment variables  |

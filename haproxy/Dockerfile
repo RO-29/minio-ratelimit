@@ -1,4 +1,5 @@
-FROM haproxy:3.0
+ARG HAPROXY_VERSION=3.0
+FROM haproxy:${HAPROXY_VERSION}
 
 # Copy HAProxy configuration
 COPY haproxy.cfg /usr/local/etc/haproxy/haproxy.cfg

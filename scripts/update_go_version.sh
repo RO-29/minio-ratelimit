@@ -11,13 +11,13 @@ GO_TOOLCHAIN_VERSION=${GO_TOOLCHAIN_VERSION:-1.24.5}
 # Update go.mod files
 update_go_mod() {
   local go_mod_file=$1
-  
+
   if [ -f "$go_mod_file" ]; then
     echo "Updating $go_mod_file to Go version $GO_VERSION (toolchain $GO_TOOLCHAIN_VERSION)"
-    
+
     # Update go directive
     sed -i '' "s/^go .*/go $GO_VERSION/" "$go_mod_file"
-    
+
     # Update toolchain directive if it exists, otherwise add it
     if grep -q "^toolchain " "$go_mod_file"; then
       sed -i '' "s/^toolchain .*/toolchain go$GO_TOOLCHAIN_VERSION/" "$go_mod_file"

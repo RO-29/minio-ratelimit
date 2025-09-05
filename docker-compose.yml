@@ -1,9 +1,14 @@
 version: '3.8'
 
+# Environment variables used:
+# - MINIO_VERSION: MinIO container version
+# - HAPROXY_VERSION: HAProxy container version
+# Both variables have default values in the service definitions
+
 services:
   # MinIO for testing S3 requests
   minio:
-    image: minio/minio:${MINIO_VERSION}
+    image: minio/minio:${MINIO_VERSION:-RELEASE.2025-04-22T22-12-26Z}
     ports:
       - "9001:9000"
       - "9091:9001"
@@ -23,7 +28,7 @@ services:
 
   # HAProxy Instance 1 - Active-Active Setup
   haproxy1:
-    image: haproxy:${HAPROXY_VERSION}
+    image: haproxy:${HAPROXY_VERSION:-3.0}
     ports:
       - "80:80"
       - "443:443"
@@ -44,7 +49,7 @@ services:
 
   # HAProxy Instance 2 - Active-Active Setup
   haproxy2:
-    image: haproxy:${HAPROXY_VERSION}
+    image: haproxy:${HAPROXY_VERSION:-3.0}
     ports:
       - "81:80"
       - "444:443"

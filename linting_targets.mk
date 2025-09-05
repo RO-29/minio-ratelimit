@@ -129,7 +129,7 @@ test-lua:
 	@echo "$(GREEN)✅ Lua scripts tested successfully!$(RESET)"
 
 # Run all validation checks
-validate-all: lint test-haproxy test-lua
+validate-all: lint test-haproxy test-lua verify-versions
 	@echo "$(GREEN)✅ All validation checks passed!$(RESET)"
 
 # CI setup - prepare environment for CI

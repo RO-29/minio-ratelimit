@@ -1,8 +1,8 @@
 module minio-ratelimit-test
 
-go 1.23.0
+go 1.24
 
-toolchain go1.23.5
+toolchain go1.24.5
 
 require (
 	github.com/aws/aws-sdk-go v1.44.327

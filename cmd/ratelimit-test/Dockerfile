@@ -2,7 +2,8 @@
 # =======================================================
 
 # Build stage
-FROM golang:1.21-alpine AS builder
+ARG GO_VERSION=1.24
+FROM golang:${GO_VERSION}-alpine AS builder
 
 # Install git and ca-certificates for dependencies
 RUN apk add --no-cache git ca-certificates

@@ -18,7 +18,7 @@ find . -type f \
   ! -path "./.bin/*" \
   ! -path "*/build/*" \
   -exec grep -l "haproxy:[0-9]\+\.[0-9]\+" {} \; | while read file; do
-    
+
     echo "Updating $file"
     # Replace haproxy:X.Y with haproxy:$HAPROXY_VERSION
     sed -i '' "s/haproxy:[0-9]\+\.[0-9]\+/haproxy:$HAPROXY_VERSION/g" "$file"

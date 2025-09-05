@@ -17,10 +17,10 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-        
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -52,29 +52,29 @@ jobs:
           echo "Lua: $(lua -v)"
           echo "Docker: $(docker --version)"
           echo "Docker Compose: $(docker compose version)"
-      
+
       - name: Set up project
         run: make ci-setup
-      
+
       - name: Lint
         run: make lint
-      
+
       - name: Test
         run: make ci-test
-      
+
       - name: Validate
         run: make validate-all
 
   build:
     needs: test
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Build and Export HAProxy Image
         uses: docker/build-push-action@v5
         with:
@@ -86,9 +86,9 @@ jobs:
             HAPROXY_VERSION=${{ env.HAPROXY_VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
+
       - name: Upload HAProxy Image Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: haproxy-image
           path: /tmp/haproxy-image.tar

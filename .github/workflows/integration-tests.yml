@@ -37,7 +37,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y haproxy lua5.3 luarocks
+          sudo apt-get install -y haproxy3.0 lua5.3 luarocks
 
       - name: Check CI Environment
         run: |

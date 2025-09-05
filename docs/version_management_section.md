@@ -33,7 +33,7 @@ The version management system provides several tools and commands:
 
 - **Version Information**: `make versions` displays current version requirements and installed versions
 - **Environment Validation**: `make check-versions` validates if the environment meets requirements
-- **Update Mechanisms**: 
+- **Update Mechanisms**:
   - `make update-go-version`: Updates Go version in go.mod files
   - `make update-haproxy-version`: Updates HAProxy version references
   - `make update-versions`: Updates all versions throughout the project

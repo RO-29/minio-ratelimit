@@ -97,6 +97,8 @@ This project implements a comprehensive, production-ready rate limiting solution
 
 This project has the following version requirements:
 
+> **Note:** All version information is centralized in the `versions.mk` file. See the "Version Management" section below for details.
+
 | Dependency | Required Version | Notes |
 |------------|------------------|-------|
 | Go | >= ${GO_VERSION} | Used for testing tools and rate limit tests |
@@ -107,10 +109,31 @@ This project has the following version requirements:
 
 ### **Version Management**
 
-All version requirements are centralized in the `versions.mk` file and can be viewed using:
+All version requirements are centralized in the `versions.mk` file at the root of the project. This allows for easy updating and maintaining consistency across all components.
+
+#### **Version Management Commands**
 
 ```bash
+# Display all current version information
 make versions
+
+# Verify environment meets requirements
+make check-versions
+
+# Verify version consistency across the project
+make verify-versions
+
+# Update Go version in all go.mod files
+make update-go-version
+
+# Update HAProxy version in all files
+make update-haproxy-version
+
+# Update all versions throughout the project
+make update-versions
+```
+
+For detailed information about the version management system, see [VERSION_MANAGEMENT.md](./VERSION_MANAGEMENT.md).
 ```
 
 To verify your environment meets all requirements:
