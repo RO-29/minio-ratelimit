@@ -19,6 +19,16 @@ import (
 	minioCredentials "github.com/minio/minio-go/v7/pkg/credentials"
 )
 
+// Helper function to safely get a key prefix to prevent slice bounds panics
+func safeKeyPrefix(accessKey string) string {
+	if len(accessKey) > 8 {
+		return accessKey[:8]
+	} else if len(accessKey) == 0 {
+		return "TESTKEY"
+	}
+	return accessKey
+}
+
 // runComprehensiveTests executes all test types for the given accounts
 func runComprehensiveTests(ctx context.Context, accounts []ServiceAccount, progress *ProgressTracker) []TestResult {
 	var wg sync.WaitGroup
@@ -175,7 +185,7 @@ func testMinIOClientEnhanced(ctx context.Context, account ServiceAccount, progre
 		}
 
 		reqStart := time.Now()
-		object := fmt.Sprintf("minio-test-%s-%d.txt", account.AccessKey[:8], i)
+		object := fmt.Sprintf("minio-test-%s-%d.txt", safeKeyPrefix(account.AccessKey), i)
 		content := strings.NewReader(fmt.Sprintf("test data %d", i))
 
 		_, err := client.PutObject(ctx, bucket, object, content, -1, minio.PutObjectOptions{})
@@ -263,7 +273,7 @@ func testAWSS3ClientEnhanced(ctx context.Context, account ServiceAccount, progre
 		}
 
 		reqStart := time.Now()
-		object := fmt.Sprintf("aws-test-%s-%d.txt", account.AccessKey[:8], i)
+		object := fmt.Sprintf("aws-test-%s-%d.txt", safeKeyPrefix(account.AccessKey), i)
 		content := strings.NewReader(fmt.Sprintf("aws test data %d", i))
 
 		_, err := client.PutObjectWithContext(ctx, &s3.PutObjectInput{
@@ -329,7 +339,7 @@ func testHTTPAPIEnhanced(ctx context.Context, account ServiceAccount, progress *
 		}
 
 		reqStart := time.Now()
-		object := fmt.Sprintf("http-test-%s-%d.txt", account.AccessKey[:8], i)
+		object := fmt.Sprintf("http-test-%s-%d.txt", safeKeyPrefix(account.AccessKey), i)
 		body := bytes.NewReader([]byte(fmt.Sprintf("http test data %d", i)))
 
 		req, err := http.NewRequestWithContext(ctx, "PUT",
@@ -503,7 +513,7 @@ func testBurstRequests(ctx context.Context, account ServiceAccount, progress *Pr
 			}
 
 			reqStart := time.Now()
-			object := fmt.Sprintf("burst-test-%s-%d-%d.txt", account.AccessKey[:8], burst, i)
+			object := fmt.Sprintf("burst-test-%s-%d-%d.txt", safeKeyPrefix(account.AccessKey), burst, i)
 			body := bytes.NewReader([]byte(fmt.Sprintf("burst test data %d-%d", burst, i)))
 
 			req, err := http.NewRequestWithContext(ctx, "PUT",
@@ -612,7 +622,7 @@ func testPremiumStressHTTP(ctx context.Context, account ServiceAccount, progress
 		}
 
 		reqStart := time.Now()
-		object := fmt.Sprintf("stress-test-%s-%d.txt", account.AccessKey[:8], i)
+		object := fmt.Sprintf("stress-test-%s-%d.txt", safeKeyPrefix(account.AccessKey), i)
 		body := bytes.NewReader([]byte(fmt.Sprintf("stress test data %d", i)))
 
 		req, err := http.NewRequestWithContext(ctx, "PUT",
@@ -714,7 +724,7 @@ func testIntensiveBurst(ctx context.Context, account ServiceAccount, progress *P
 		// Send 50 rapid requests in each burst
 		for i := 0; i < 50; i++ {
 			reqStart := time.Now()
-			object := fmt.Sprintf("burst-%s-%d-%d.txt", account.AccessKey[:8], burst, i)
+			object := fmt.Sprintf("burst-%s-%d-%d.txt", safeKeyPrefix(account.AccessKey), burst, i)
 			body := bytes.NewReader([]byte(fmt.Sprintf("burst %d-%d", burst, i)))
 
 			req, err := http.NewRequestWithContext(ctx, "PUT",
@@ -800,7 +810,7 @@ func testSustainedLoad(ctx context.Context, account ServiceAccount, progress *Pr
 		}
 
 		reqStart := time.Now()
-		object := fmt.Sprintf("sustained-%s-%d.txt", account.AccessKey[:8], i)
+		object := fmt.Sprintf("sustained-%s-%d.txt", safeKeyPrefix(account.AccessKey), i)
 		body := bytes.NewReader([]byte(fmt.Sprintf("sustained %d", i)))
 
 		req, err := http.NewRequestWithContext(ctx, "PUT",

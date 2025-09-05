@@ -3,3 +3,4 @@ backups/
 haproxy/ssl/certs/
 comprehensive_results.json
 scripts/cleanup.sh
+test-results/
