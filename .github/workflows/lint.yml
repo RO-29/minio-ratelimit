@@ -1,0 +1,74 @@
+name: MinIO Rate Limit Linting
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - '**.go'
+      - '**.lua'
+      - 'haproxy/haproxy.cfg'
+      - 'haproxy/config/**'
+      - '.github/workflows/lint.yml'
+  pull_request:
+    branches: [ main, master, develop ]
+    paths:
+      - '**.go'
+      - '**.lua'
+      - 'haproxy/haproxy.cfg'
+      - 'haproxy/config/**'
+      - '.github/workflows/lint.yml'
+  workflow_dispatch:
+
+jobs:
+  lint-go:
+    name: Lint Go Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '^1.21'
+
+      - name: Install golangci-lint
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Lint Go code
+        run: make lint-go
+
+  lint-haproxy:
+    name: Validate HAProxy Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install HAProxy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y haproxy
+
+      - name: Validate HAProxy configuration
+        run: make lint-haproxy
+
+  lint-lua:
+    name: Validate Lua Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Lua
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.3 luarocks
+
+      - name: Validate Lua scripts
+        run: make lint-lua
+
+      - name: Test Lua scripts
+        run: make test-lua

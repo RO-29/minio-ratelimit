@@ -1,0 +1,58 @@
+# GitHub Actions Setup Script
+# This script is used to prepare the GitHub Actions environment for testing
+
+name: MinIO Rate Limit Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    name: Set Up GitHub Actions Environment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '^1.21'
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y haproxy lua5.3 luarocks
+
+      - name: Install Go tools
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+      - name: Generate test configurations
+        run: |
+          mkdir -p ./haproxy/config
+          ./scripts/generate_test_tokens.sh -n 2
+
+      - name: Prepare test environment
+        run: |
+          make ci-setup
+          
+      - name: Verify setup
+        run: |
+          echo "Verifying Go installation:"
+          go version
+          
+          echo "Verifying HAProxy installation:"
+          haproxy -v
+          
+          echo "Verifying Lua installation:"
+          lua -v
+          
+          echo "Verifying golangci-lint installation:"
+          golangci-lint --version
+          
+          echo "Verifying test configuration files:"
+          ls -la ./haproxy/config/
+
+      - name: Run validation tests
+        run: make validate-all

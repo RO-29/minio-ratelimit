@@ -27,7 +27,7 @@
 #   make test-extended    - Run an extended test (5m duration)
 #   make test-export      - Run test and export detailed JSON results
 
-.PHONY: up down restart reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir
+.PHONY: up down restart reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup
 
 # Default target
 help:
@@ -63,6 +63,17 @@ help:
 	@echo "  make test-all-tiers    - Run tests across all tiers with analysis"
 	@echo "  make test-custom       - Run test with custom configuration"
 	@echo "  make compare-results   - Compare results between different test runs"
+	@echo ""
+	@echo "Linting and validation:"
+	@echo "  make lint              - Run all linting checks"
+	@echo "  make lint-go           - Lint Go code"
+	@echo "  make lint-haproxy      - Check HAProxy configuration syntax"
+	@echo "  make lint-lua          - Check Lua scripts syntax"
+	@echo "  make test-haproxy      - Test HAProxy configuration"
+	@echo "  make test-lua          - Test Lua scripts"
+	@echo "  make validate-all      - Run all validation checks"
+	@echo "  make ci-test           - Run tests for CI environment"
+	@echo "  make ci-validate       - Run validations for CI environment"
 
 # Start all services
 up:
@@ -159,6 +170,9 @@ update-maps:
 # Define variables for test commands
 TEST_CMD = cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test
 TEST_RESULTS_DIR = ./cmd/ratelimit-test/results
+
+# Include linting and validation targets
+include linting_targets.mk
 
 # Ensure results directory exists
 ensure-results-dir:
