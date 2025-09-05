@@ -83,7 +83,7 @@ jobs:
       - name: Run basic test
         run: |
           cd cmd/ratelimit-test
-          ./build/minio-ratelimit-test -duration=15s -accounts=1 -quick
+          ./build/minio-ratelimit-test -duration=15s -accounts=1
 
       - name: Cleanup
         run: |

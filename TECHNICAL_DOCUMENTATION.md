@@ -1,20 +1,111 @@
 # HAProxy MinIO Rate Limiting - Technical Deep Dive
 
 ## 📋 Table of Contents
-1. [System Architecture](#system-architecture)
-2. [HAProxy 3.0 Core Features](#haproxy-30-core-features)
-3. [Dynamic Rate Limiting Engine](#dynamic-rate-limiting-engine)
-4. [Lua Authentication Engine](#lua-authentication-engine)
-5. [Request Processing Flow](#request-processing-flow)
-6. [Stick Tables Deep Dive](#stick-tables-deep-dive)
-7. [Fully Dynamic Architecture](#fully-dynamic-architecture)
-8. [Hot Reloading Internals](#hot-reloading-internals)
-9. [SSL/TLS Implementation](#ssltls-implementation)
-10. [Memory Management](#memory-management)
-11. [Performance Analysis](#performance-analysis)
-12. [Performance Optimizations](#performance-optimizations)
-13. [Production Deployment](#production-deployment)
-14. [Advanced Troubleshooting](#advanced-troubleshooting)
+1. [Project Organization](#project-organization)
+2. [System Architecture](#system-architecture)
+3. [HAProxy 3.0 Core Features](#haproxy-30-core-features)
+4. [Dynamic Rate Limiting Engine](#dynamic-rate-limiting-engine)
+5. [Lua Authentication Engine](#lua-authentication-engine)
+6. [Request Processing Flow](#request-processing-flow)
+7. [Stick Tables Deep Dive](#stick-tables-deep-dive)
+8. [Fully Dynamic Architecture](#fully-dynamic-architecture)
+9. [Hot Reloading Internals](#hot-reloading-internals)
+10. [SSL/TLS Implementation](#ssltls-implementation)
+11. [Memory Management](#memory-management)
+12. [Performance Analysis](#performance-analysis)
+13. [Performance Optimizations](#performance-optimizations)
+14. [Production Deployment](#production-deployment)
+15. [Advanced Troubleshooting](#advanced-troubleshooting)
+
+---
+
+## Project Organization
+
+### Repository Structure
+
+The project follows a well-organized structure to separate core components, configuration, and utilities:
+
+```plaintext
+minio-ratelimit/
+├── haproxy/                     # HAProxy configuration and Lua scripts
+│   ├── haproxy.cfg              # Main HAProxy configuration
+│   ├── lua/                     # Lua scripts for authentication and rate limiting
+│   │   ├── dynamic_rate_limiter.lua  # Rate limiting implementation
+│   │   └── extract_api_keys.lua      # Authentication extraction logic
+│   ├── config/                  # Hot-reloadable configuration files
+│   │   ├── api_key_groups.map         # API key to group mapping
+│   │   ├── rate_limits_per_minute.map # Per-minute limits by group
+│   │   ├── rate_limits_per_second.map # Per-second limits by group
+│   │   └── error_messages.map         # Custom error responses
+│   └── ssl/                     # SSL/TLS certificates
+│       └── certs/               # Certificate storage
+│
+├── scripts/                     # Utility and management scripts
+│   ├── cleanup.sh               # Project organization utility
+│   ├── check_docker_compose.sh  # Docker Compose version detector
+│   ├── generate-minio-service-accounts.sh # Service account generator
+│   ├── generate-ssl-haproxy-certificates.sh # SSL certificate generator
+│   ├── generate_test_tokens.sh  # Test token generator
+│   ├── haproxy_validate.sh      # HAProxy configuration validator
+│   ├── lua_validate.sh          # Lua script validator
+│   ├── manage-dynamic-limits    # Rate limit manager
+│   ├── test_haproxy.sh          # HAProxy tester
+│   └── verify_all.sh            # Complete validation suite
+│
+├── cmd/                         # Command-line tools
+│   └── ratelimit-test/          # Rate limit testing framework
+│       ├── build/               # Compiled binary location
+│       ├── results/             # Test results directory
+│       ├── main.go              # Main application code
+│       ├── tests.go             # Test implementations
+│       └── types.go             # Data structure definitions
+│
+├── config/                      # Base configuration templates
+├── docker-compose.yml           # Production deployment setup
+├── Makefile                     # Project management targets
+├── *.mk                         # Split Makefile targets by function
+├── README.md                    # Project documentation
+├── TECHNICAL_DOCUMENTATION.md   # Technical deep dive (this file)
+├── VALIDATION_GUIDE.md          # Testing and validation guide
+└── .bin/                        # Development and archived resources
+    ├── archived_scripts/        # Historical script versions
+    ├── debug_tools/             # Development debugging tools
+    ├── old_configs/             # Previous configurations
+    └── test_data/               # Test datasets
+```
+
+### Core Components
+
+The solution is built around several interconnected components:
+
+1. **HAProxy Configuration**
+   - Main configuration file (`haproxy.cfg`)
+   - Maps for dynamic configuration
+   - SSL certificate setup
+
+2. **Lua Scripts**
+   - Authentication extraction (`extract_api_keys.lua`)
+   - Rate limiting implementation (`dynamic_rate_limiter.lua`)
+
+3. **Management Tools**
+   - Scripts for hot reconfiguration
+   - Validation utilities
+   - Certificate management
+
+4. **Testing Framework**
+   - Go-based test suite
+   - Performance benchmarking
+   - Automated validation
+
+### Development Workflow
+
+The project supports a streamlined development workflow:
+
+1. **Setup**: One-command setup with `docker-compose up -d`
+2. **Configuration**: Hot-reloadable configuration via map files
+3. **Validation**: Comprehensive validation suite
+4. **Testing**: Performance and functional testing tools
+5. **Deployment**: Production-ready Docker Compose setup
 
 ---
 
@@ -73,7 +164,7 @@
 - **MinIO Client**: Uses MinIO's signature format (V2/V4)
 - **HTTP Clients**: Can use custom headers or pre-signed URLs
 
-#### 2. **HAProxy Layer** 
+#### 2. **HAProxy Layer**
 - **SSL/TLS Termination**: Handles HTTPS connections
 - **Authentication Extraction**: Parses all S3 auth methods via Lua
 - **Rate Limiting**: Individual API key tracking with stick tables
@@ -122,11 +213,11 @@ HAProxy's stick tables provide high-performance, memory-based storage:
 
 ```haproxy
 # Stick table configuration syntax
-stick-table type <key_type> len <key_length> size <max_entries> 
+stick-table type <key_type> len <key_length> size <max_entries>
             expire <timeout> store <data_types>
 
 # Example: API key rate tracking
-stick-table type string len 64 size 100k expire 2m 
+stick-table type string len 64 size 100k expire 2m
             store http_req_rate(1m),http_req_cnt,http_err_rate(1m)
 ```
 
@@ -142,7 +233,7 @@ HAProxy's map files enable hot configuration updates:
 
 ```haproxy
 # Map file usage in configuration
-http-request set-var(txn.rate_group) 
+http-request set-var(txn.rate_group)
   var(txn.api_key),map(/path/to/api_key_groups.map,default_value)
 
 # Runtime map management via socket
@@ -220,11 +311,11 @@ function check_rate_limit(txn)
     -- Get current usage from stick tables
     local current_rate_per_minute = tonumber(txn.sf:sc_http_req_rate(0)) or 0
     local current_rate_per_second = tonumber(txn.sf:sc_http_req_rate(1)) or 0
-    
+
     -- Get dynamic limits from map file variables
     local limit_per_minute = tonumber(txn:get_var("txn.rate_limit_per_minute"))
     local limit_per_second = tonumber(txn:get_var("txn.rate_limit_per_second"))
-    
+
     -- Dynamic comparison (no hardcoded values)
     if current_rate_per_minute > limit_per_minute then
         -- Generate error message with current limit values
@@ -260,30 +351,30 @@ function extract_api_key(txn)
     local auth_header = txn.http:req_get_headers()["authorization"]
     local api_key = nil
     local auth_method = nil
-    
+
     if auth_header then
         local auth = auth_header[0]  -- Get first header value
-        
+
         -- AWS Signature V4 extraction
         if string.match(auth, "^AWS4%-HMAC%-SHA256") then
             api_key, auth_method = extract_v4_key(auth)
-        
+
         -- AWS Signature V2 extraction
         elseif string.match(auth, "^AWS [^:]+:") then
             api_key, auth_method = extract_v2_key(auth)
         end
     end
-    
+
     -- Pre-signed URL extraction
     if not api_key then
         api_key, auth_method = extract_presigned_key(txn)
     end
-    
+
     -- Custom header extraction
     if not api_key then
         api_key, auth_method = extract_custom_headers(txn)
     end
-    
+
     -- Set HAProxy variables
     set_variables(txn, api_key or "", auth_method or "none")
 end
@@ -295,9 +386,9 @@ end
 
 **Header Format**:
 ```
-Authorization: AWS4-HMAC-SHA256 
-Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, 
-SignedHeaders=host;range;x-amz-date, 
+Authorization: AWS4-HMAC-SHA256
+Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request,
+SignedHeaders=host;range;x-amz-date,
 Signature=fe5f80f77d5fa3beca038a248ff027d0445342fe2855ddc963176630326f1024
 ```
 
@@ -317,7 +408,7 @@ end
 
 #### 2. **AWS Signature V2 (Simpler)**
 
-**Header Format**: 
+**Header Format**:
 ```
 Authorization: AWS AKIDEXAMPLE:dGhpcyBtZXNzYWdlIGlzIGJhc2U2NCBlbmNvZGVk
 ```
@@ -369,13 +460,13 @@ X-Access-Key-Id: AKIDEXAMPLE
 ```lua
 function extract_custom_headers(txn)
     local headers = txn.http:req_get_headers()
-    
+
     if headers["x-api-key"] then
         return headers["x-api-key"][0], "custom_lua"
     elseif headers["x-access-key-id"] then
         return headers["x-access-key-id"][0], "custom_lua"
     end
-    
+
     return nil, nil
 end
 ```
@@ -416,7 +507,7 @@ frontend s3_frontend
 
 #### Step 2: **SSL/TLS Processing** (if HTTPS)
 - Certificate validation
-- Cipher negotiation  
+- Cipher negotiation
 - SSL handshake completion
 
 #### Step 3: **Lua Authentication Extraction**
@@ -430,7 +521,7 @@ http-request lua.extract_api_key
 
 #### Step 4: **Group Mapping**
 ```haproxy
-http-request set-var(txn.rate_group) 
+http-request set-var(txn.rate_group)
   var(txn.api_key),map(/usr/local/etc/haproxy/config/api_key_groups.map,default)
 ```
 - Maps API key to rate group
@@ -448,8 +539,8 @@ http-request track-sc1 var(txn.api_key) table api_key_rates_1s
 
 #### Step 6: **Rate Limit Enforcement**
 ```haproxy
-http-request deny deny_status 429 content-type "application/xml" 
-  string "<?xml version=\"1.0\"...>Rate limit exceeded</Error>" 
+http-request deny deny_status 429 content-type "application/xml"
+  string "<?xml version=\"1.0\"...>Rate limit exceeded</Error>"
   if { sc_http_req_rate(0) gt 2000 } { var(txn.rate_group) -m str premium }
 ```
 - Checks current rate against limit
@@ -468,7 +559,7 @@ backend minio_backend
 #### Step 8: **Response Processing**
 ```haproxy
 http-response set-header X-RateLimit-Group "%[var(txn.rate_group)]"
-http-response set-header X-API-Key "%[var(txn.api_key)]" 
+http-response set-header X-API-Key "%[var(txn.api_key)]"
 http-response set-header X-RateLimit-Current-Per-Minute "%[sc_http_req_rate(0)]"
 ```
 
@@ -483,7 +574,7 @@ HAProxy stick tables provide high-performance, in-memory data storage:
 ```haproxy
 # Stick table definition
 backend api_key_rates_1m
-    stick-table type string len 64 size 100k expire 2m 
+    stick-table type string len 64 size 100k expire 2m
                 store http_req_rate(1m),http_req_cnt,http_err_rate(1m)
 ```
 
@@ -512,7 +603,7 @@ backend api_key_rates_1m
 ### ⚡ Performance Characteristics
 
 #### **Lookup Performance**
-- **Algorithm**: Hash table with linked lists for collisions  
+- **Algorithm**: Hash table with linked lists for collisions
 - **Time Complexity**: O(1) average, O(n) worst case
 - **Benchmark**: >100,000 lookups/second per core
 
@@ -523,7 +614,7 @@ backend api_key_rates_1m
 
 #### **Thread Safety**
 - **Locking**: Per-table locks for write operations
-- **Reads**: Lock-free for maximum performance  
+- **Reads**: Lock-free for maximum performance
 - **Atomicity**: Counter updates are atomic
 
 ### 📊 Stick Table Operations
@@ -533,7 +624,7 @@ backend api_key_rates_1m
 # Track API key in table 0 (per-minute rates)
 http-request track-sc0 var(txn.api_key) table api_key_rates_1m
 
-# Track same API key in table 1 (per-second rates)  
+# Track same API key in table 1 (per-second rates)
 http-request track-sc1 var(txn.api_key) table api_key_rates_1s
 ```
 
@@ -581,7 +672,7 @@ premium 2000
 standard 500
 basic 100
 
-# config/rate_limits_per_second.map - Per-second limits  
+# config/rate_limits_per_second.map - Per-second limits
 premium 50
 standard 25
 basic 10
@@ -620,14 +711,14 @@ local error_xml = string.format(
 # Complete management script with all commands implemented
 ./manage-dynamic-limits set-minute-limit premium 3000
 # 1. Automatic backup creation
-# 2. Updates map file atomically  
+# 2. Updates map file atomically
 # 3. Hot reloads HAProxy via socket API
 # 4. Validates changes
 # 5. Zero service interruption
 
 # Complete command set available:
 # API Key Management: add-key, remove-key, update-key, list-keys
-# Rate Limits: set-minute-limit, set-second-limit, get-limits, list-all-limits  
+# Rate Limits: set-minute-limit, set-second-limit, get-limits, list-all-limits
 # Error Messages: set-error-msg, get-error-msg
 # System: show-stats, validate, backup, restore, reload
 ```
@@ -659,7 +750,7 @@ HAProxy uses **sliding window** counters for rate limiting:
 ```
 Time: ----+----+----+----+----+----+----+----+----+----+
       t-60  t-50  t-40  t-30  t-20  t-10   t
-      
+
 Requests in last minute: [5] + [3] + [7] + [2] + [1] + [4] = 22
 ```
 
@@ -673,10 +764,10 @@ Requests in last minute: [5] + [3] + [7] + [2] + [1] + [4] = 22
 #### **Tier Configuration**
 ```haproxy
 # Premium tier: 2000 req/min, 50 req/sec
-http-request deny deny_status 429 if { sc_http_req_rate(0) gt 2000 } 
+http-request deny deny_status 429 if { sc_http_req_rate(0) gt 2000 }
   { var(txn.rate_group) -m str premium }
-  
-http-request deny deny_status 429 if { sc_http_req_rate(1) gt 50 } 
+
+http-request deny deny_status 429 if { sc_http_req_rate(1) gt 50 }
   { var(txn.rate_group) -m str premium }
 ```
 
@@ -700,7 +791,7 @@ http-request deny deny_status 429 if { sc_http_req_rate(1) gt 50 }
 # Per-minute sustained rate
 http-request track-sc0 var(txn.api_key) table api_key_rates_1m
 
-# Per-second burst rate  
+# Per-second burst rate
 http-request track-sc1 var(txn.api_key) table api_key_rates_1s
 ```
 
@@ -773,11 +864,11 @@ echo "NEWKEY123 premium" >> config/api_key_groups.map
 #### 2. **Runtime API Command**
 ```bash
 # Reload specific map
-echo "clear map /usr/local/etc/haproxy/config/api_key_groups.map" | 
+echo "clear map /usr/local/etc/haproxy/config/api_key_groups.map" |
   socat stdio unix:/tmp/haproxy.sock
 
 # Alternative: add single entry
-echo "set map /usr/local/etc/haproxy/config/api_key_groups.map NEWKEY123 premium" | 
+echo "set map /usr/local/etc/haproxy/config/api_key_groups.map NEWKEY123 premium" |
   socat stdio unix:/tmp/haproxy.sock
 ```
 
@@ -790,7 +881,7 @@ echo "set map /usr/local/etc/haproxy/config/api_key_groups.map NEWKEY123 premium
 #### 4. **Verification**
 ```bash
 # Confirm update
-echo "show map /usr/local/etc/haproxy/config/api_key_groups.map" | 
+echo "show map /usr/local/etc/haproxy/config/api_key_groups.map" |
   socat stdio unix:/tmp/haproxy.sock
 ```
 
@@ -836,7 +927,7 @@ testkey123           basic
 ```bash
 ssl/certs/
 ├── haproxy.pem    # Combined cert + key for HAProxy
-├── haproxy.crt    # Public certificate  
+├── haproxy.crt    # Public certificate
 ├── haproxy.key    # Private key
 └── haproxy.csr    # Certificate signing request
 ```
@@ -852,7 +943,7 @@ openssl genrsa -out haproxy.key 2048
 # Generate certificate signing request
 openssl req -new -key haproxy.key -out haproxy.csr -subj "/CN=localhost"
 
-# Generate self-signed certificate  
+# Generate self-signed certificate
 openssl x509 -req -in haproxy.csr -signkey haproxy.key -out haproxy.crt -days 365
 
 # Combine for HAProxy (cert + key)
@@ -866,10 +957,10 @@ cat haproxy.crt haproxy.key > haproxy.pem
 frontend s3_frontend
     # HTTP binding
     bind *:80
-    
+
     # HTTPS binding with SSL certificate
     bind *:443 ssl crt /etc/ssl/certs/haproxy.pem
-    
+
     # SSL options
     ssl-default-bind-ciphers ECDHE+AESGCM:ECDHE+CHACHA20:RSA+AESGCM:RSA+SHA256
     ssl-default-bind-options ssl-min-ver TLSv1.2 no-tls-tickets
@@ -912,7 +1003,7 @@ Table Size = size × (key_len + data_size + overhead)
 = 100,000 × 104
 = ~10.4 MB
 
-# api_key_rates_1s table  
+# api_key_rates_1s table
 = 100,000 × (64 + 8 + 16)
 = 100,000 × 88
 = ~8.8 MB
@@ -944,7 +1035,7 @@ Variables: ~2 KB per request
 #### **Total HAProxy Memory**
 ```bash
 Base HAProxy: ~50 MB
-Stick Tables: ~20 MB  
+Stick Tables: ~20 MB
 Maps: ~4 KB
 Lua: ~17 KB per worker × 8 workers = ~136 KB
 SSL: ~5 MB (certificates, sessions)
@@ -1023,7 +1114,7 @@ stick-table type string len 64 size 1000k expire 2m store http_req_rate(1m)
 # Optimize for common case (most API keys are short)
 stick-table type string len 32 size 100k expire 2m  # vs len 64
 
-# Reduce data storage if error tracking not needed  
+# Reduce data storage if error tracking not needed
 stick-table store http_req_rate(1m),http_req_cnt  # vs adding http_err_rate
 ```
 
@@ -1133,7 +1224,7 @@ backend api_key_rates_1m
     # Optimized table size for better memory usage
     stick-table type string len 32 size 50k expire 90s store http_req_rate(1m),http_req_cnt
 
-backend api_key_rates_1s  
+backend api_key_rates_1s
     # Optimized expire time for efficient cleanup
     stick-table type string len 32 size 50k expire 5s store http_req_rate(1s),http_req_cnt
 ```
@@ -1205,7 +1296,7 @@ echo "show table api_key_rates_1m" | socat stdio /tmp/haproxy.sock
 └─────────────────────┬───────────────────────────────────────┘
                       │
     ┌─────────────────────────────────────────────────────────┐
-    │                  HAProxy Tier                           │  
+    │                  HAProxy Tier                           │
     │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
     │  │  HAProxy 1  │  │  HAProxy 2  │  │  HAProxy N  │    │
     │  │   Primary   │  │  Secondary  │  │   Backup    │    │
@@ -1238,9 +1329,9 @@ services:
       - ./ssl:/etc/ssl/certs
       - ./config:/usr/local/etc/haproxy/config
     restart: always
-    
+
   haproxy-secondary:
-    image: haproxy:3.0  
+    image: haproxy:3.0
     ports:
       - "81:80"
       - "444:443"
@@ -1322,7 +1413,7 @@ listen stats
     stats enable
     stats uri /stats
     stats auth admin:secure_password
-    
+
     # IP whitelist for stats
     acl allowed_networks src 10.0.0.0/8 192.168.0.0/16
     http-request deny if !allowed_networks
@@ -1333,7 +1424,7 @@ listen stats
 # Security header configuration
 http-response set-header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 http-response set-header X-Content-Type-Options nosniff
-http-response set-header X-Frame-Options DENY  
+http-response set-header X-Frame-Options DENY
 http-response set-header X-XSS-Protection "1; mode=block"
 http-response set-header Referrer-Policy "strict-origin-when-cross-origin"
 ```
@@ -1366,7 +1457,7 @@ The `manage-dynamic-limits` script provides comprehensive configuration manageme
 # Set per-minute rate limit for group
 ./manage-dynamic-limits set-minute-limit premium 5000
 
-# Set per-second burst limit for group  
+# Set per-second burst limit for group
 ./manage-dynamic-limits set-second-limit premium 100
 
 # Get current limits for specific group
@@ -1390,7 +1481,7 @@ The `manage-dynamic-limits` script provides comprehensive configuration manageme
 # Show comprehensive system status
 ./manage-dynamic-limits show-stats
 
-# Validate all map file syntax  
+# Validate all map file syntax
 ./manage-dynamic-limits validate
 
 # Create backup of current configuration
@@ -1413,7 +1504,7 @@ The `manage-dynamic-limits` script provides comprehensive configuration manageme
 
 #### **Hot Reload Integration**
 - All configuration changes trigger automatic HAProxy reload
-- Uses HAProxy socket API for zero-downtime reloads  
+- Uses HAProxy socket API for zero-downtime reloads
 - Falls back to container restart if socket reload fails
 - Validates configuration before applying
 
@@ -1461,7 +1552,7 @@ docker logs -f haproxy1 | grep --line-buffered "rate"
 echo "show table api_key_rates_1m" | socat stdio unix:/tmp/haproxy.sock
 
 # Show specific API key details
-echo "show table api_key_rates_1m data.http_req_rate key MYAPIKEY" | 
+echo "show table api_key_rates_1m data.http_req_rate key MYAPIKEY" |
   socat stdio unix:/tmp/haproxy.sock
 ```
 
@@ -1563,10 +1654,10 @@ acl is_put method PUT
 acl is_get method GET
 
 # Higher limits for GET requests
-http-request deny deny_status 429 if is_put { sc_http_req_rate(0) gt 1000 } 
+http-request deny deny_status 429 if is_put { sc_http_req_rate(0) gt 1000 }
   { var(txn.rate_group) -m str premium }
 
-http-request deny deny_status 429 if is_get { sc_http_req_rate(0) gt 3000 } 
+http-request deny deny_status 429 if is_get { sc_http_req_rate(0) gt 3000 }
   { var(txn.rate_group) -m str premium }
 ```
 
@@ -1576,7 +1667,7 @@ http-request deny deny_status 429 if is_get { sc_http_req_rate(0) gt 3000 }
 http-request set-var(txn.country) req.fhdr(CF-IPCountry)  # Cloudflare header
 
 # Lower limits for certain countries
-http-request deny deny_status 429 if { var(txn.country) -m str CN } 
+http-request deny deny_status 429 if { var(txn.country) -m str CN }
   { sc_http_req_rate(0) gt 100 }
 ```
 
@@ -1587,10 +1678,10 @@ acl business_hours date(0,9) date(17,23) # 9 AM to 11 PM
 acl is_weekend date(6,7)  # Saturday, Sunday
 
 # Higher limits during business hours
-http-request deny deny_status 429 if business_hours !is_weekend 
+http-request deny deny_status 429 if business_hours !is_weekend
   { sc_http_req_rate(0) gt 3000 } { var(txn.rate_group) -m str premium }
 
-http-request deny deny_status 429 if !business_hours 
+http-request deny deny_status 429 if !business_hours
   { sc_http_req_rate(0) gt 1000 } { var(txn.rate_group) -m str premium }
 ```
 
@@ -1605,7 +1696,7 @@ http-request deny deny_status 429 if !business_hours
 - `stats socket`: Runtime API socket
 - `maxconn`: Maximum connections
 
-#### **Frontend Section**  
+#### **Frontend Section**
 - `bind`: Port and SSL configuration
 - `http-request`: Request processing rules
 - `track-sc0/1`: Stick table tracking

@@ -812,6 +812,31 @@ minio-ratelimit/
 
 ---
 
+## 🧹 **Project Maintenance**
+
+### **Project Organization**
+
+To maintain a clean project structure, use the cleanup utility:
+
+```bash
+make cleanup
+```
+
+This will organize development files, archived resources, and non-essential components into the `.bin` directory while preserving the core project files.
+
+The cleanup process:
+- Moves old scripts and backups to appropriate subdirectories
+- Consolidates test results and build artifacts
+- Creates a summary of moved files
+- Preserves all files (nothing is deleted)
+
+### **Directory Structure Management**
+
+The project automatically maintains a well-organized directory structure:
+- Core components in their respective directories (`haproxy/`, `scripts/`, etc.)
+- Development and archived files in `.bin/` subdirectories
+- Temporary files segregated from production code
+
 ## 🔧 **Troubleshooting**
 
 ### **Common Issues**

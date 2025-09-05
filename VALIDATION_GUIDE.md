@@ -135,6 +135,25 @@ make test-export       # Export detailed test results to JSON
 make test-all-tiers    # Test all tiers with comprehensive analysis
 ```
 
+## Project Organization
+
+The validation tools are part of a well-organized project structure:
+
+```
+minio-ratelimit/
+├── scripts/                       # Validation and utility scripts
+│   ├── verify_all.sh              # Complete validation suite
+│   ├── haproxy_validate.sh        # HAProxy configuration validator
+│   ├── lua_validate.sh            # Lua scripts syntax validator
+│   ├── test_haproxy.sh            # HAProxy configuration tester
+│   ├── cleanup.sh                 # Project organization and cleanup utility
+│   └── check_docker_compose.sh    # Docker Compose version checker
+├── cmd/ratelimit-test/            # Rate limiting test tool
+├── Makefile                       # Validation targets
+├── linting_targets.mk             # Linting and validation targets
+└── ratelimit_targets.mk           # Rate limiting test targets
+```
+
 ## Troubleshooting
 
 ### HAProxy Validation Issues
@@ -145,6 +164,7 @@ If HAProxy validation fails:
 2. Verify HAProxy configuration syntax
 3. Ensure rate limiting directives (stick-table, lua-load) are present
 4. Check for custom HTTP headers for rate limiting
+5. Run `./scripts/haproxy_validate.sh --verbose` for detailed diagnostics
 
 ### Lua Script Issues
 
@@ -154,6 +174,7 @@ If Lua validation fails:
 2. Verify Lua script syntax
 3. Ensure required functions (rate_limit, extract_api_key) are present
 4. Check for proper error handling in Lua scripts
+5. Run `./scripts/lua_validate.sh --verbose` for detailed diagnostics
 
 ### Rate Limiting Not Working
 
