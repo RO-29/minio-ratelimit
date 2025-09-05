@@ -57,7 +57,7 @@ function test_extract_aws_key()
 
     local pass = 0
     local total = #test_cases
-    
+
     for _, test in ipairs(test_cases) do
         print("Running test: " .. test.name)
         local result = extract_aws_key(test.input)
@@ -68,7 +68,7 @@ function test_extract_aws_key()
             print(string.format("❌ FAIL: Expected '%s', got '%s'", test.expected, result))
         end
     end
-    
+
     print(string.format("\nPassed %d/%d tests", pass, total))
     return pass == total
 end
@@ -113,7 +113,7 @@ function test_basic_functions()
 
     local pass = 0
     local total = #test_cases
-    
+
     for _, test in ipairs(test_cases) do
         print("Running test: " .. test.name)
         local result = test.test()
@@ -124,7 +124,7 @@ function test_basic_functions()
             print("❌ FAIL")
         end
     end
-    
+
     print(string.format("\nPassed %d/%d tests", pass, total))
     return pass == total
 end

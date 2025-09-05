@@ -20,12 +20,12 @@ function generate_random_key() {
     local length=20
     local chars="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     local key=""
-    
+
     for i in $(seq 1 $length); do
         local rand=$(( $RANDOM % ${#chars} ))
         key="${key}${chars:$rand:1}"
     done
-    
+
     echo "$key"
 }
 
@@ -35,12 +35,12 @@ function generate_random_secret() {
     local length=40
     local chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     local secret=""
-    
+
     for i in $(seq 1 $length); do
         local rand=$(( $RANDOM % ${#chars} ))
         secret="${secret}${chars:$rand:1}"
     done
-    
+
     echo "$secret"
 }
 
@@ -103,22 +103,22 @@ first=true
 
 for tier in "${tiers[@]}"; do
     echo "${BLUE}Generating $NUM_ACCOUNTS accounts for $tier tier...${RESET}"
-    
+
     for i in $(seq 1 $NUM_ACCOUNTS); do
         # Generate access key and secret key
         access_key=$(generate_random_key)
         secret_key=$(generate_random_secret)
-        
+
         # Add to API key groups map
         echo "$access_key $tier" >> "$API_KEY_FILE"
-        
+
         # Add to JSON file with comma if not first entry
         if [ "$first" = true ]; then
             first=false
         else
             echo "," >> "$OUTPUT_FILE"
         fi
-        
+
         cat >> "$OUTPUT_FILE" << EOF
     {
       "access_key": "$access_key",

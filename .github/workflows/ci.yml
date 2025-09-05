@@ -49,7 +49,7 @@ jobs:
         run: cd cmd/ratelimit-test && go test -v ./... -coverprofile=coverage.out
 
       - name: Upload test coverage
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-coverage
           path: cmd/ratelimit-test/coverage.out
@@ -78,7 +78,7 @@ jobs:
         run: docker-compose down
 
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: cmd/ratelimit-test/results/

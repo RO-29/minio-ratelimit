@@ -36,21 +36,21 @@ jobs:
       - name: Prepare test environment
         run: |
           make ci-setup
-          
+
       - name: Verify setup
         run: |
           echo "Verifying Go installation:"
           go version
-          
+
           echo "Verifying HAProxy installation:"
           haproxy -v
-          
+
           echo "Verifying Lua installation:"
           lua -v
-          
+
           echo "Verifying golangci-lint installation:"
           golangci-lint --version
-          
+
           echo "Verifying test configuration files:"
           ls -la ./haproxy/config/
 
