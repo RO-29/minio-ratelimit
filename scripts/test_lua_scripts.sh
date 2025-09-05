@@ -2,12 +2,20 @@
 # Lua script test runner for HAProxy Lua scripts
 # A simplified version that just reports script availability
 
-# Set colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-RESET='\033[0m'
+# Colors for output - disable if not in terminal or if NO_COLOR is set
+if [ -t 1 ] && [ -z "$NO_COLOR" ] && [ -z "$CI_NO_COLOR" ]; then
+  RED='\033[0;31m'
+  GREEN='\033[0;32m'
+  YELLOW='\033[0;33m'
+  BLUE='\033[0;34m'
+  RESET='\033[0m'
+else
+  RED=''
+  GREEN=''
+  YELLOW=''
+  BLUE=''
+  RESET=''
+fi
 
 # Directory containing Lua scripts
 SCRIPT_DIR="./haproxy/lua"

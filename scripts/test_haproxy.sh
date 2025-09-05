@@ -2,12 +2,20 @@
 # HAProxy Configuration Testing Script
 # A simplified version that just verifies basic functionality
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-RESET='\033[0m'
+# Colors for output - disable if not in terminal or if NO_COLOR is set
+if [ -t 1 ] && [ -z "$NO_COLOR" ] && [ -z "$CI_NO_COLOR" ]; then
+  RED='\033[0;31m'
+  GREEN='\033[0;32m'
+  YELLOW='\033[0;33m'
+  BLUE='\033[0;34m'
+  RESET='\033[0m'
+else
+  RED=''
+  GREEN=''
+  YELLOW=''
+  BLUE=''
+  RESET=''
+fi
 
 # Default paths
 HAPROXY_CONFIG="./haproxy/haproxy.cfg"

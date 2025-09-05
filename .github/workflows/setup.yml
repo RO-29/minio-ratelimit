@@ -72,15 +72,15 @@ jobs:
           openssl req -x509 -newkey rsa:2048 -nodes -keyout ./haproxy/certs/haproxy.pem \
             -out ./haproxy/certs/haproxy.pem -days 1 -subj "/CN=localhost"
 
-          # Run the validation
-          ./scripts/haproxy_validate.sh
+          # Run the validation with colors disabled
+          CI=true CI_NO_COLOR=true ./scripts/haproxy_validate.sh
           
       - name: Run Lua validation explicitly
         run: |
           chmod +x ./scripts/lua_validate.sh
           
           # Run the validation using local lua since it's installed in the GitHub runner
-          ./scripts/lua_validate.sh
+          CI=true CI_NO_COLOR=true ./scripts/lua_validate.sh
 
       - name: Run full validation tests
-        run: make validate-all
+        run: CI=true CI_NO_COLOR=true make validate-all

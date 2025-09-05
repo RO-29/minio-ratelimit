@@ -55,7 +55,7 @@ jobs:
       - name: Validate HAProxy configuration
         run: |
           chmod +x ./scripts/haproxy_validate.sh
-          CI=true ./scripts/haproxy_validate.sh --local-only
+          CI=true CI_NO_COLOR=true ./scripts/haproxy_validate.sh --local-only
 
   lint-lua:
     name: Validate Lua Scripts
@@ -72,9 +72,9 @@ jobs:
       - name: Validate Lua scripts
         run: |
           chmod +x ./scripts/lua_validate.sh
-          CI=true ./scripts/lua_validate.sh --local-only
+          CI=true CI_NO_COLOR=true ./scripts/lua_validate.sh --local-only
       
       - name: Test Lua scripts
         run: |
           chmod +x ./scripts/test_lua_scripts.sh
-          ./scripts/test_lua_scripts.sh
+          CI_NO_COLOR=true ./scripts/test_lua_scripts.sh

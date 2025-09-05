@@ -1,10 +1,21 @@
-# Colors for prettier output
-CYAN := \033[36m
-GREEN := \033[32m
-YELLOW := \033[33m
-RED := \033[31m
-BLUE := \033[34m
-RESET := \033[0m
+# Colors for prettier output - disable if in CI
+ifdef CI
+  # Disable colors in CI environments
+  CYAN := 
+  GREEN := 
+  YELLOW := 
+  RED := 
+  BLUE := 
+  RESET := 
+  export CI_NO_COLOR := true
+else
+  CYAN := \033[36m
+  GREEN := \033[32m
+  YELLOW := \033[33m
+  RED := \033[31m
+  BLUE := \033[34m
+  RESET := \033[0m
+endif
 
 #
 # Linting and Validation Targets
