@@ -302,7 +302,7 @@ update-versions: update-go-version update-haproxy-version verify-versions
 	@echo "To verify changes, use: git diff"
 
 # Update all versions and run verification
-update-all-versions: 
+update-all-versions:
 	@echo "🔄 Running comprehensive version update..."
 	@./scripts/update_all_versions.sh
 

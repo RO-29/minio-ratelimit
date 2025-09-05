@@ -60,7 +60,7 @@ jobs:
           HAPROXY_VERSION=$(grep -E '^HAPROXY_VERSION :=' versions.mk | sed 's/HAPROXY_VERSION := //')
           echo "haproxy_version=$HAPROXY_VERSION" >> $GITHUB_OUTPUT
           echo "Using HAProxy version: $HAPROXY_VERSION"
-          
+
       - name: Install HAProxy
         run: |
           sudo apt-get update
@@ -84,7 +84,7 @@ jobs:
           LUA_VERSION=$(grep -E '^LUA_VERSION :=' versions.mk | sed 's/LUA_VERSION := //')
           echo "lua_version=$LUA_VERSION" >> $GITHUB_OUTPUT
           echo "Using Lua version: $LUA_VERSION"
-          
+
       - name: Install Lua
         run: |
           sudo apt-get update

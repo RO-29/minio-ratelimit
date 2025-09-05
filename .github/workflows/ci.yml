@@ -138,13 +138,13 @@ jobs:
           # Get the Docker Compose command from the environment check
           echo "Using Docker Compose command: docker compose"
           source ./scripts/export_versions.sh
-          docker-compose up -d
+          docker compose up -d
 
       - name: Wait for services to be ready
         run: |
           echo "Waiting for services to be ready..."
           sleep 10
-          docker-compose ps
+          docker compose ps
           echo "Docker images running:"
           docker images | grep -E 'haproxy|minio'
 
@@ -152,7 +152,7 @@ jobs:
         run: make test-quick
 
       - name: Stop services
-        run: docker-compose down
+        run: docker compose down
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -197,18 +197,18 @@ jobs:
           else
             echo "All HAProxy Docker references use the correct version"
           fi
-          
+
       - name: Check Docker Compose version references
         run: |
           DOCKER_COMPOSE_VERSION=$(grep -E '^DOCKER_COMPOSE_VERSION :=' versions.mk | sed 's/DOCKER_COMPOSE_VERSION := //')
           echo "Looking for Docker Compose version references..."
-          
+
           # Check documentation files for Docker Compose version references
           DOC_REFERENCES=$(grep -r "Docker Compose" --include="*.md" --include="*.txt" . | grep -v "versions.mk" || true)
           if [[ -n "$DOC_REFERENCES" ]]; then
             echo "Found Docker Compose references in documentation:"
             echo "$DOC_REFERENCES"
-            
+
             # Check if the documentation references the correct version
             INCORRECT_DOC_REFS=$(grep -r "Docker Compose .* [0-9]" --include="*.md" --include="*.txt" . | grep -v "$DOCKER_COMPOSE_VERSION" || true)
             if [[ -n "$INCORRECT_DOC_REFS" ]]; then
@@ -221,14 +221,14 @@ jobs:
           else
             echo "No explicit Docker Compose version references found in documentation"
           fi
-          
+
       - name: Run comprehensive version verification
         run: |
           echo "Running comprehensive version verification script..."
           chmod +x ./scripts/verify_versions.sh
           # Export the version environment variables
           source ./scripts/export_versions.sh
-          
+
           # Run the verification script but don't fail the job on errors
           # This allows us to see all issues and still continue with the workflow
           ./scripts/verify_versions.sh || echo "::warning::Version inconsistencies found - check verify_versions.sh output above"

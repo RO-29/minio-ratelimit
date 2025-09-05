@@ -43,6 +43,11 @@ echo "Checking Go version consistency..."
 
 # Check go.mod files
 while IFS= read -r -d '' file; do
+  # Skip files in .bin directory
+  if [[ "$file" == *".bin/"* ]]; then
+    continue
+  fi
+  
   go_version=$(grep -E '^go ' "$file" | awk '{print $2}')
   if [[ "$go_version" != "$GO_VERSION" ]]; then
     report_issue "Go version mismatch in $file: found $go_version, expected $GO_VERSION"
@@ -59,7 +64,7 @@ echo -e "\nChecking Docker image references..."
     if [[ "$file" == *".bin/"* ]]; then
       continue
     fi
-    
+
     if grep -q "haproxy:" "$file"; then
       # Check for variable references like ${HAPROXY_VERSION} or $HAPROXY_VERSION
       # Also check for variable references with default values like ${HAPROXY_VERSION:-3.0}
@@ -83,10 +88,15 @@ echo -e "\nChecking Docker image references..."
         fi
       fi
     fi
-  done < <(find "$PROJECT_ROOT" -type f -name "*.yml" -o -name "Dockerfile" | grep -v "versions.mk")
+  done < <(find "$PROJECT_ROOT" -type f -name "*.yml" -o -name "Dockerfile" | grep -v "versions.mk" | grep -v ".github/workflows/")
 
   # Check MinIO version
   while IFS= read -r file; do
+    # Skip .bin directory
+    if [[ "$file" == *".bin/"* ]]; then
+      continue
+    fi
+
     if grep -q "minio:" "$file"; then
       # Check for variable references like ${MINIO_VERSION} or $MINIO_VERSION
       # Also check for variable references with default values like ${MINIO_VERSION:-RELEASE.2025-04-22T22-12-26Z}
@@ -110,16 +120,16 @@ echo -e "\nChecking Docker image references..."
         fi
       fi
     fi
-  done < <(find "$PROJECT_ROOT" -type f -name "*.yml" -o -name "Dockerfile" | grep -v "versions.mk")
+  done < <(find "$PROJECT_ROOT" -type f -name "*.yml" -o -name "Dockerfile" | grep -v "versions.mk" | grep -v ".github/workflows/")
 
 # Check Lua version
 echo -e "\nChecking Lua version references..."
 while IFS= read -r file; do
   if grep -q "lua-" "$file" || grep -q "lua[0-9]" "$file"; then
     # Skip files that don't explicitly need a Lua version
-    if [[ "$file" == *"test_haproxy_config.sh"* || 
-          "$file" == *"test_haproxy.sh"* || 
-          "$file" == *"haproxy_validate.sh"* || 
+    if [[ "$file" == *"test_haproxy_config.sh"* ||
+          "$file" == *"test_haproxy.sh"* ||
+          "$file" == *"haproxy_validate.sh"* ||
           "$file" == *"validate_rate_limiting.sh"* ]]; then
       echo -e "${YELLOW}⚠️  Skipping Lua version check for utility script: $file${NC}"
     elif ! grep -q "lua-$LUA_VERSION" "$file" && ! grep -q "lua$LUA_VERSION" "$file" && ! grep -q "\${LUA_VERSION}" "$file"; then
@@ -137,21 +147,23 @@ while IFS= read -r file; do
   if [[ "$file" == *".bin/"* ]]; then
     continue
   fi
-  
+
   if grep -q "Go version" "$file" || grep -q "HAProxy version" "$file" || grep -q "Lua version" "$file"; then
     if ! grep -q "$GO_VERSION" "$file"; then
       report_warning "Documentation in $file may need updating with current Go version: $GO_VERSION"
     fi
-    
+
     if ! grep -q "$HAPROXY_VERSION" "$file"; then
       report_warning "Documentation in $file may need updating with current HAProxy version: $HAPROXY_VERSION"
     fi
-    
+
     if ! grep -q "$LUA_VERSION" "$file"; then
       report_warning "Documentation in $file may need updating with current Lua version: $LUA_VERSION"
     fi
   fi
-done < <(find "$PROJECT_ROOT" -name "*.md" -o -name "*.txt" | grep -v "CHANGELOG" | grep -v ".bin/")# Summary
+done < <(find "$PROJECT_ROOT" -name "*.md" -o -name "*.txt" | grep -v "CHANGELOG" | grep -v ".bin/")
+
+# Summary
 echo -e "\n======================================"
 if [[ $ISSUES_FOUND -eq 0 ]]; then
   echo -e "${GREEN}✅ All versions are consistent with versions.mk!${NC}"
