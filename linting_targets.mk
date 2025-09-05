@@ -148,10 +148,15 @@ ci-setup:
 	@echo "$(CYAN)Generating service accounts for testing...$(RESET)"
 	@if [ ! -f ./haproxy/config/generated_service_accounts.json ]; then \
 		chmod +x ./scripts/generate-minio-service-accounts.sh; \
-		./scripts/generate-minio-service-accounts.sh || ( \
-			echo "$(YELLOW)⚠️  Service account generation failed, creating minimal config for CI$(RESET)"; \
-			echo '{"service_accounts": [{"access_key": "TESTKEY123456789", "secret_key": "testsecret123456789", "group": "basic"}], "metadata": {"total_accounts": 1}}' > ./haproxy/config/generated_service_accounts.json; \
-		); \
+		if [ -n "$(CI)" ]; then \
+			echo "$(YELLOW)CI environment detected, creating minimal config for testing$(RESET)"; \
+			echo '{"service_accounts": [{"access_key": "TESTKEY123456789", "secret_key": "testsecret123456789", "group": "basic"}, {"access_key": "TESTKEY987654321", "secret_key": "testsecret987654321", "group": "premium"}], "metadata": {"total_accounts": 2}}' > ./haproxy/config/generated_service_accounts.json; \
+		else \
+			./scripts/generate-minio-service-accounts.sh || ( \
+				echo "$(YELLOW)⚠️  Service account generation failed, creating minimal config$(RESET)"; \
+				echo '{"service_accounts": [{"access_key": "TESTKEY123456789", "secret_key": "testsecret123456789", "group": "basic"}, {"access_key": "TESTKEY987654321", "secret_key": "testsecret987654321", "group": "premium"}], "metadata": {"total_accounts": 2}}' > ./haproxy/config/generated_service_accounts.json; \
+			); \
+		fi; \
 	fi
 	@echo "$(GREEN)✅ CI setup complete!$(RESET)"
 

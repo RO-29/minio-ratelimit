@@ -133,7 +133,7 @@ jobs:
         if: always()
         with:
           name: integration-test-results
-          path: cmd/ratelimit-test/results/
+          path: test-results/
 
   build:
     name: Build and Verify

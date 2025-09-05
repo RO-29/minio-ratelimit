@@ -42,11 +42,19 @@ echo "  • Basic tier: $BASIC_COUNT accounts"
 echo "  • Total: $TOTAL_COUNT accounts"
 echo
 
+# Detect Docker Compose command
+DOCKER_COMPOSE_CMD="docker compose"
+if ! docker compose version > /dev/null 2>&1; then
+    if docker-compose --version > /dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+    fi
+fi
+
 # Ensure MinIO is running
 echo -e "${BLUE}Checking MinIO status...${NC}"
 if ! docker exec minio-ratelimit-minio-1 mc admin info local >/dev/null 2>&1; then
     echo -e "${RED}❌ MinIO is not accessible. Starting services...${NC}"
-    cd "$PROJECT_ROOT" && docker-compose up -d minio
+    cd "$PROJECT_ROOT" && $DOCKER_COMPOSE_CMD up -d minio
     sleep 10
 
     # Ensure mc is installed in the container
@@ -231,11 +239,11 @@ if [[ -f "$SCRIPT_DIR/manage-dynamic-limits" ]]; then
     else
         echo -e "${YELLOW}⚠️  HAProxy reload failed, may need manual restart${NC}"
         echo -e "${YELLOW}Restarting HAProxy containers...${NC}"
-        cd "$PROJECT_ROOT" && docker-compose restart haproxy1 haproxy2
+        cd "$PROJECT_ROOT" && $DOCKER_COMPOSE_CMD restart haproxy1 haproxy2
     fi
 else
     echo -e "${YELLOW}⚠️  manage-dynamic-limits script not found, restarting HAProxy containers...${NC}"
-    cd "$PROJECT_ROOT" && docker-compose restart haproxy1 haproxy2
+    cd "$PROJECT_ROOT" && $DOCKER_COMPOSE_CMD restart haproxy1 haproxy2
 fi
 
 # Display summary
