@@ -150,7 +150,9 @@ ci-setup:
 # CI test - run tests in CI environment
 ci-test: ci-setup
 	@echo "$(CYAN)🧪 Running tests in CI environment...$(RESET)"
-	@cd ./cmd/ratelimit-test && go test -v ./... -coverprofile=../test-results/coverage.out
+	@mkdir -p ./test-results
+	@cd ./cmd/ratelimit-test && go test -v ./... -coverprofile=coverage.out
+	@mv ./cmd/ratelimit-test/coverage.out ./test-results/coverage.out || true
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
 	@$(TEST_CMD) -duration=30s -accounts=2 -json -output=./test-results/ci_results.json
 	@echo "$(GREEN)✅ CI tests complete!$(RESET)"
