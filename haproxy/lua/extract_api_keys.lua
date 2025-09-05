@@ -107,47 +107,5 @@ function extract_api_key(txn)
     txn:set_var("txn.auth_method", "none")
 end
 
--- Function to map API key to rate group and set rate limits
-function map_api_key_to_group(txn)
-    -- Get the API key from transaction variable
-    local api_key = txn:get_var("txn.api_key")
-
-    -- Only proceed if API key exists and has content
-    if api_key and #api_key > 0 then
-        -- Use HAProxy's map lookup function to get rate_group
-        -- This will look up the API key in the map file and return the corresponding rate group
-        -- or "default" if not found
-        local rate_group = txn.f:lookup("txt", api_key_groups_map_path, api_key, "default")
-
-        -- Set the rate_group variable
-        txn:set_var("txn.rate_group", rate_group)
-
-        -- If it's a test key and the lookup returned default, set to "basic"
-        if rate_group == "default" and string.sub(api_key, 1, 5) == "test-" then
-            txn:set_var("txn.rate_group", "basic")
-            rate_group = "basic"
-        end
-
-        -- Now set the rate limits and error message based on the rate_group
-        -- This replaces the HAProxy directives in the config file
-        local rate_limit_per_minute = txn.f:lookup("txt", rate_limits_per_minute_map_path, rate_group, default_rate_limit_per_minute)
-
-        local rate_limit_per_second = txn.f:lookup("txt", rate_limits_per_second_map_path, rate_group, default_rate_limit_per_second)
-
-        local error_message = txn.f:lookup("txt", error_messages_map_path, rate_group,
-        default_error_message)
-
-        -- Set the transaction variables
-        txn:set_var("txn.rate_limit_per_minute", rate_limit_per_minute)
-        txn:set_var("txn.rate_limit_per_second", rate_limit_per_second)
-        txn:set_var("txn.error_message", error_message)
-    else
-        -- No API key or empty API key
-        txn:set_var("txn.rate_group", "default")
-        -- Don't set rate limits for empty API keys
-    end
-end
-
--- Register the optimized functions
+-- Register the optimized function
 core.register_action("extract_api_key", {"http-req"}, extract_api_key, 0)
-core.register_action("map_api_key_to_group", {"http-req"}, map_api_key_to_group, 0)
