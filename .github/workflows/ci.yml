@@ -221,6 +221,17 @@ jobs:
           else
             echo "No explicit Docker Compose version references found in documentation"
           fi
+          
+      - name: Run comprehensive version verification
+        run: |
+          echo "Running comprehensive version verification script..."
+          chmod +x ./scripts/verify_versions.sh
+          # Export the version environment variables
+          source ./scripts/export_versions.sh
+          
+          # Run the verification script but don't fail the job on errors
+          # This allows us to see all issues and still continue with the workflow
+          ./scripts/verify_versions.sh || echo "::warning::Version inconsistencies found - check verify_versions.sh output above"
 
   build-docker:
     name: Build and Test Docker Image
