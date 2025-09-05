@@ -1,2 +1,10 @@
 .bin
 backups/
+haproxy/ssl/certs/
+comprehensive_results.json
+scripts/cleanup.sh
+test-results/
+docker-results/
+coverage/
+cmd/ratelimite-test/*.json
+haproxy.pem

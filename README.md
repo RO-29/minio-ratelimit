@@ -8,7 +8,7 @@ This project implements a comprehensive, production-ready rate limiting solution
 
 - ✅ **Complete S3 Authentication Support**: AWS Signature V2/V4, pre-signed URLs, custom headers
 - ✅ **Fully Dynamic Rate Limiting**: Zero hardcoded values - all limits from map files
-- ✅ **Hot-Reloadable Configuration**: Change limits without HAProxy restart  
+- ✅ **Hot-Reloadable Configuration**: Change limits without HAProxy restart
 - ✅ **Multi-Tier System**: Premium, Standard, Basic, Default tiers with different limits
 - ✅ **Default Group Fallback**: Unknown API keys automatically assigned to default group
 - ✅ **Individual API Key Tracking**: Each API key has its own rate limit counter
@@ -24,16 +24,18 @@ This project implements a comprehensive, production-ready rate limiting solution
 ## 📋 **Table of Contents**
 
 1. [Architecture Overview](#-architecture-overview)
-2. [HAProxy 3.0 Features Used](#-haproxy-30-features-used)
-3. [Authentication Methods](#-authentication-methods)
-4. [Rate Limiting System](#-rate-limiting-system)
-5. [Hot Reloading Mechanism](#-hot-reloading-mechanism)
+2. [Version Requirements](#-version-requirements)
+3. [HAProxy 3.0 Features Used](#-haproxy-30-features-used)
+4. [Authentication Methods](#-authentication-methods)
+5. [Rate Limiting System](#-rate-limiting-system)
+6. [Hot Reloading Mechanism](#-hot-reloading-mechanism)
 6. [Installation & Setup](#-installation--setup)
-7. [Configuration Management](#-configuration-management)
-8. [Testing & Validation](#-testing--validation)
-9. [Performance Metrics](#-performance-metrics)
-10. [Monitoring & Debugging](#-monitoring--debugging)
-11. [Production Deployment](#-production-deployment)
+7. [Docker Compose Compatibility](#-docker-compose-compatibility)
+8. [Configuration Management](#-configuration-management)
+9. [Testing & Validation](#-testing--validation)
+10. [Performance Metrics](#-performance-metrics)
+11. [Monitoring & Debugging](#-monitoring--debugging)
+12. [Production Deployment](#-production-deployment)
 
 ---
 
@@ -48,7 +50,7 @@ This project implements a comprehensive, production-ready rate limiting solution
           └──────────┬───────────┘
                      │
           ┌─────────────────────┐
-          │    Load Balancer    │  
+          │    Load Balancer    │
           │   (External LB)     │
           └─────────┬───────────┘
                     │
@@ -91,13 +93,85 @@ This project implements a comprehensive, production-ready rate limiting solution
 
 ---
 
+## 🔧 **Version Requirements**
+
+This project has the following version requirements:
+
+> **Note:** All version information is centralized in the `versions.mk` file. See the "Version Management" section below for details.
+
+| Dependency | Required Version | Notes |
+|------------|------------------|-------|
+| Go | >= 1.24 | Used for testing tools and rate limit tests |
+| HAProxy | >= 3.0 | Core component for rate limiting |
+| Lua | >= 5.3 | Used for authentication and rate limiting logic |
+| Docker | >= 20.10.0 | Required for containerized setup |
+| Docker Compose | >= 2.26.0 | Both v1 and v2 supported |
+
+### **Version Management**
+
+All version requirements are centralized in the `versions.mk` file at the root of the project. This allows for easy updating and maintaining consistency across all components.
+
+#### **Version Management Commands**
+
+```bash
+# Display all current version information
+make versions
+
+# Verify environment meets requirements
+make check-versions
+
+# Verify version consistency across the project
+make verify-versions
+
+# Update Go version in all go.mod files
+make update-go-version
+
+# Update HAProxy version in all files
+make update-haproxy-version
+
+# Update all versions throughout the project
+make update-versions
+
+# Comprehensive version update and verification
+make update-all-versions
+```
+
+For detailed information about the version management system, see [VERSION_MANAGEMENT.md](./VERSION_MANAGEMENT.md).
+```
+
+To verify your environment meets all requirements:
+
+```bash
+make check-versions
+```
+
+If your local Go version doesn't match the required version, you can update go.mod files with:
+
+```bash
+make update-go-version
+```
+
+For HAProxy version updates across the project:
+
+```bash
+make update-haproxy-version
+```
+
+To update all versions at once:
+
+```bash
+make update-versions
+```
+
+---
+
 ## 🔧 **HAProxy 3.0 Features Used**
 
 ### **1. Lua Scripting Integration**
 
 HAProxy 3.0's Lua support provides two critical functions:
 
-**A) Authentication Extraction** (`extract_api_keys.lua`):
+**A) Authentication Extraction** (`haproxy/lua/extract_api_keys.lua`):
 ```lua
 -- Extract API keys from complex AWS Signature V4 headers
 function extract_api_key(txn)
@@ -111,13 +185,13 @@ function extract_api_key(txn)
 end
 ```
 
-**B) Dynamic Rate Limiting** (`dynamic_rate_limiter.lua`):
+**B) Dynamic Rate Limiting** (`haproxy/lua/dynamic_rate_limiter.lua`):
 ```lua
 -- Check rate limits using values from map files (no hardcoded limits)
 function check_rate_limit(txn)
     local current_rate_per_minute = tonumber(txn.sf:sc_http_req_rate(0)) or 0
     local limit_per_minute = tonumber(txn:get_var("txn.rate_limit_per_minute"))
-    
+
     if current_rate_per_minute > limit_per_minute then
         txn:set_var("txn.rate_limit_exceeded", "true")
         -- Generate dynamic error message with current limits
@@ -134,7 +208,7 @@ Individual API key rate tracking using HAProxy's memory-based stick tables:
 backend api_key_rates_1m
     stick-table type string len 64 size 100k expire 2m store http_req_rate(1m)
 
-# Per-second burst tracking  
+# Per-second burst tracking
 backend api_key_rates_1s
     stick-table type string len 64 size 100k expire 10s store http_req_rate(1s)
 ```
@@ -145,10 +219,10 @@ Hot-reloadable configuration using HAProxy map files:
 
 ```haproxy
 # API key to group mapping
-http-request set-var(txn.rate_group) var(txn.api_key),map(/path/api_key_groups.map,unknown)
+http-request set-var(txn.rate_group) var(txn.api_key),map(/usr/local/etc/haproxy/config/api_key_groups.map,unknown)
 
 # Dynamic rate limits
-http-request set-var(txn.rate_limit_per_minute) var(txn.rate_group),map(/path/rate_limits_per_minute.map,50)
+http-request set-var(txn.rate_limit_per_minute) var(txn.rate_group),map(/usr/local/etc/haproxy/config/rate_limits_per_minute.map,50)
 ```
 
 ### **4. Advanced ACLs and Variables**
@@ -166,7 +240,7 @@ http-request deny deny_status 429 if { sc_http_req_rate(0) gt 2000 } { var(txn.r
 
 ### **5. SSL/TLS Termination**
 
-HTTPS support with certificate binding:
+Https support with certificate binding:
 
 ```haproxy
 frontend s3_frontend
@@ -272,8 +346,8 @@ http-request deny deny_status 429 content-type "application/xml" string "%[var(t
 
 **Flow**:
 1. **Authentication Extraction**: Lua extracts API key from various S3 auth methods
-2. **Group Mapping**: API key → group mapping from `api_key_groups.map`
-3. **Limit Loading**: Per-minute/second limits from `rate_limits_*.map` files
+2. **Group Mapping**: API key → group mapping from `haproxy/config/api_key_groups.map`
+3. **Limit Loading**: Per-minute/second limits from `haproxy/config/rate_limits_*.map` files
 4. **Dynamic Comparison**: Lua compares current usage against dynamic limits
 5. **Smart Denial**: Lua generates error messages with current limit values
 6. **Response Headers**: Dynamic rate limit info in response headers
@@ -309,15 +383,15 @@ HAProxy 3.0 supports hot reloading of map files without restarting the service:
 
 ### **Map File Structure**
 
-#### **API Key Groups** (`config/api_key_groups.map`)
+#### **API Key Groups** (`haproxy/config/api_key_groups.map`)
 ```
 # Access Key -> Group mapping
 5HQZO7EDOM4XBNO642GQ premium
-VSLP8GUZ6SPYILLLGHJ0 standard  
+VSLP8GUZ6SPYILLLGHJ0 standard
 FQ4IU19ZFZ3470XJ7GBF basic
 ```
 
-#### **Rate Limits Per Minute** (`config/rate_limits_per_minute.map`)
+#### **Rate Limits Per Minute** (`haproxy/config/rate_limits_per_minute.map`)
 ```
 # Group -> Requests per minute
 premium 2000
@@ -326,7 +400,7 @@ basic 100
 unknown 50
 ```
 
-#### **Rate Limits Per Second** (`config/rate_limits_per_second.map`)
+#### **Rate Limits Per Second** (`haproxy/config/rate_limits_per_second.map`)
 ```
 # Group -> Burst requests per second
 premium 50
@@ -335,7 +409,7 @@ basic 10
 unknown 5
 ```
 
-#### **Error Messages** (`config/error_messages.map`)
+#### **Error Messages** (`haproxy/config/error_messages.map`)
 ```
 # Group -> Custom error message
 premium Premium_rate_exceeded
@@ -352,29 +426,29 @@ echo "clear map #0" | socat stdio unix-connect:/tmp/haproxy.sock
 echo "show map #0" | socat stdio unix-connect:/tmp/haproxy.sock
 
 # Add new API key mapping
-echo "set map config/api_key_groups.map NEWKEY123 premium" | socat stdio unix-connect:/tmp/haproxy.sock
+echo "set map haproxy/config/api_key_groups.map NEWKEY123 premium" | socat stdio unix-connect:/tmp/haproxy.sock
 
 # Update rate limits
-echo "set map config/rate_limits_per_minute.map premium 3000" | socat stdio unix-connect:/tmp/haproxy.sock
+echo "set map haproxy/config/rate_limits_per_minute.map premium 3000" | socat stdio unix-connect:/tmp/haproxy.sock
 ```
 
 ### **Management Script**
 
-The `manage-dynamic-limits` script provides a user-friendly interface:
+The `scripts/manage-dynamic-limits` script provides a user-friendly interface:
 
 ```bash
 # Show current configuration
-./manage-dynamic-limits show-config
+./scripts/manage-dynamic-limits show-config
 
 # Add new API key
-./manage-dynamic-limits add-key NEWKEY123 premium
+./scripts/manage-dynamic-limits add-key NEWKEY123 premium
 
 # Update rate limits
-./manage-dynamic-limits set-limits premium 3000 75
+./scripts/manage-dynamic-limits set-limits premium 3000 75
 
 # Backup and restore
-./manage-dynamic-limits backup
-./manage-dynamic-limits restore backup_file
+./scripts/manage-dynamic-limits backup
+./scripts/manage-dynamic-limits restore backup_file
 ```
 
 ---
@@ -395,10 +469,10 @@ git clone <repository-url>
 cd minio-ratelimit
 
 # Generate SSL certificates
-./ssl/generate-certificates.sh
+./scripts/generate-ssl-haproxy-certificates.sh
 
 # Generate 50 real MinIO service accounts
-./generate-service-accounts.sh
+./scripts/generate-minio-service-accounts.sh
 
 # Start all services
 docker-compose up -d
@@ -411,9 +485,59 @@ curl -I http://localhost/test-bucket/ \
 ### **Service Endpoints**
 
 - **HAProxy 1**: `http://localhost` (port 80), `https://localhost` (port 443)
-- **HAProxy 2**: `http://localhost:81` (port 81), `https://localhost:444` (port 444)  
+- **HAProxy 2**: `http://localhost:81` (port 81), `https://localhost:444` (port 444)
 - **MinIO**: `http://localhost:9001` (port 9001)
 - **HAProxy Stats**: `http://localhost:8404/stats`
+
+---
+
+## 🐳 **Docker Compose Compatibility**
+
+The project is fully compatible with both Docker Compose V1 and V2, ensuring flexibility across different environments.
+
+### **Docker Compose Version Support**
+
+- **Docker Compose V1** (`docker-compose` command)
+- **Docker Compose V2** (`docker compose` command)
+
+### **Environment Compatibility**
+
+```bash
+# Using Docker Compose V1
+docker-compose up -d
+
+# Using Docker Compose V2
+docker compose up -d
+```
+
+### **Docker Compose File Structure**
+
+The `docker-compose.yml` file includes:
+
+- **MinIO Instance**: Object storage service with preconfigured access keys
+- **HAProxy Instances (x2)**: Active-active setup for high availability
+  - Instance 1: Ports 80 (HTTP), 443 (HTTPS), 8404 (Stats)
+  - Instance 2: Ports 81 (HTTP), 444 (HTTPS), 8405 (Stats)
+
+### **Volume Configuration**
+
+- **Persistent Storage**: MinIO data persists across container restarts
+- **Configuration Mounting**: All HAProxy configurations are mounted as read-only
+  - Lua scripts for authentication and rate limiting
+  - SSL certificates
+  - Configuration files
+
+### **Health Checks**
+
+Both MinIO and HAProxy services include properly configured health checks:
+
+- MinIO: Checks `/minio/health/live` endpoint every 30 seconds
+- HAProxy: Verifies stats page availability every 30 seconds
+
+### **Resource Requirements**
+
+- Minimum: 4GB RAM, 2 CPU cores
+- Recommended: 8GB RAM, 4 CPU cores for production workloads
 
 ---
 
@@ -423,11 +547,11 @@ curl -I http://localhost/test-bucket/ \
 
 ```bash
 # Generate 50 service accounts with proper IAM policies
-./generate-service-accounts.sh
+./scripts/generate-minio-service-accounts.sh
 
 # Accounts created:
 # - 12 Premium accounts (2000 req/min, 50 req/sec)
-# - 20 Standard accounts (500 req/min, 25 req/sec) 
+# - 20 Standard accounts (500 req/min, 25 req/sec)
 # - 18 Basic accounts (100 req/min, 10 req/sec)
 ```
 
@@ -437,35 +561,35 @@ curl -I http://localhost/test-bucket/ \
 
 ```bash
 # === API Key Management ===
-./manage-dynamic-limits add-key MYKEY123 premium           # Add new key to group
-./manage-dynamic-limits remove-key MYKEY123                # Remove API key
-./manage-dynamic-limits update-key MYKEY123 standard       # Change key's group
-./manage-dynamic-limits list-keys                          # List all API keys
+./scripts/manage-dynamic-limits add-key MYKEY123 premium           # Add new key to group
+./scripts/manage-dynamic-limits remove-key MYKEY123                # Remove API key
+./scripts/manage-dynamic-limits update-key MYKEY123 standard       # Change key's group
+./scripts/manage-dynamic-limits list-keys                          # List all API keys
 
 # === Rate Limit Management ===
-./manage-dynamic-limits set-minute-limit premium 3000     # Set per-minute limit
-./manage-dynamic-limits set-second-limit premium 75       # Set per-second limit
-./manage-dynamic-limits get-limits premium                # Get limits for group
-./manage-dynamic-limits list-all-limits                   # List all rate limits
+./scripts/manage-dynamic-limits set-minute-limit premium 3000     # Set per-minute limit
+./scripts/manage-dynamic-limits set-second-limit premium 75       # Set per-second limit
+./scripts/manage-dynamic-limits get-limits premium                # Get limits for group
+./scripts/manage-dynamic-limits list-all-limits                   # List all rate limits
 
 # === Error Message Management ===
-./manage-dynamic-limits set-error-msg premium "Premium_account_exceeded"  # Custom error
-./manage-dynamic-limits get-error-msg premium                             # Get error message
+./scripts/manage-dynamic-limits set-error-msg premium "Premium_account_exceeded"  # Custom error
+./scripts/manage-dynamic-limits get-error-msg premium                             # Get error message
 
 # === System Management ===
-./manage-dynamic-limits show-stats                        # System status overview
-./manage-dynamic-limits validate                          # Validate all map files
-./manage-dynamic-limits backup                           # Create configuration backup
-./manage-dynamic-limits restore 20240903_143022          # Restore from backup
-./manage-dynamic-limits reload                           # Hot reload HAProxy
+./scripts/manage-dynamic-limits show-stats                        # System status overview
+./scripts/manage-dynamic-limits validate                          # Validate all map files
+./scripts/manage-dynamic-limits backup                           # Create configuration backup
+./scripts/manage-dynamic-limits restore 20240903_143022          # Restore from backup
+./scripts/manage-dynamic-limits reload                           # Hot reload HAProxy
 ```
 
 ### **Map File Management**
 
 Map files are automatically updated by management scripts, but can be manually edited:
 
-1. **Edit map file**: `vim config/api_key_groups.map`  
-2. **Hot reload**: `./manage-dynamic-limits reload`
+1. **Edit map file**: `vim haproxy/config/api_key_groups.map`
+2. **Hot reload**: `./scripts/manage-dynamic-limits reload`
 3. **Verify**: Check HAProxy logs for reload confirmation
 
 ---
@@ -477,8 +601,8 @@ Map files are automatically updated by management scripts, but can be manually e
 The project includes a comprehensive 60-second test suite:
 
 ```bash
-cd cmd/comprehensive-test
-go run fast_parallel.go
+cd cmd/ratelimit-test
+go run main.go
 ```
 
 **Test Coverage**:
@@ -500,7 +624,7 @@ go run fast_parallel.go
 
 📈 RESULTS BY GROUP:
   PREMIUM tier:  80.0% success, 0.0% limited
-  STANDARD tier: 80.0% success, 3.3% limited  
+  STANDARD tier: 80.0% success, 3.3% limited
   BASIC tier:    57.3% success, 24.1% limited
 
 🔐 AUTH METHODS DETECTED:
@@ -516,7 +640,7 @@ curl -I http://localhost/test-bucket/ \
   -H "Authorization: AWS4-HMAC-SHA256 Credential=5HQZO7EDOM4XBNO642GQ/20250903/us-east-1/s3/aws4_request, SignedHeaders=host, Signature=test"
 ```
 
-#### **Test V2 Authentication**  
+#### **Test V2 Authentication**
 ```bash
 curl -I http://localhost/test-bucket/ \
   -H "Authorization: AWS TESTKEY123456:signature"
@@ -526,7 +650,7 @@ curl -I http://localhost/test-bucket/ \
 ```bash
 # Send multiple requests rapidly
 for i in {1..10}; do
-  curl -s -o /dev/null -w "%{http_code}\n" http://localhost/test-bucket/ \
+  curl -s -o /dev/null -w "%{\nhttp_code}" http://localhost/test-bucket/ \
     -H "Authorization: AWS BASICKEY123:sig"
 done
 ```
@@ -574,8 +698,6 @@ Run the comprehensive performance comparison:
 ./cmd/performance-comparison/run_pure_haproxy_test.sh
 ```
 
-See [OPTIMIZATION_PERFORMANCE_REPORT.md](OPTIMIZATION_PERFORMANCE_REPORT.md) for detailed analysis.
-
 ---
 
 ## 📊 **Monitoring & Debugging**
@@ -587,7 +709,7 @@ Every response includes comprehensive rate limiting information:
 ```http
 HTTP/1.1 200 OK
 X-RateLimit-Group: premium
-X-API-Key: 5HQZO7EDOM4XBNO642GQ  
+X-API-Key: 5HQZO7EDOM4XBNO642GQ
 X-Auth-Method: v4_header_lua
 X-RateLimit-Limit-Per-Minute: 2000
 X-RateLimit-Limit-Per-Second: 50
@@ -602,7 +724,7 @@ X-Request-ID: unique-uuid
 Access detailed statistics at `http://localhost:8404/stats`:
 
 - **Stick table usage**: API key counters and rates
-- **Backend health**: MinIO server status  
+- **Backend health**: MinIO server status
 - **Request/response metrics**: Success rates, error rates
 - **SSL certificate status**: Expiry dates, cipher info
 
@@ -644,8 +766,8 @@ haproxy1:
   ports:
     - "80:80"    # Primary HTTP
     - "443:443"  # Primary HTTPS
-    
-haproxy2:  
+
+haproxy2:
   ports:
     - "81:80"    # Secondary HTTP
     - "444:443"  # Secondary HTTPS
@@ -666,12 +788,12 @@ External LB Rules:
 
 ```bash
 # Generate production certificates
-./ssl/generate-certificates.sh
+./scripts/generate-ssl-haproxy-certificates.sh
 
 # For production, replace with real certificates:
-# - Copy cert to ssl/certs/haproxy.crt
-# - Copy key to ssl/certs/haproxy.key  
-# - Combine: cat haproxy.crt haproxy.key > haproxy.pem
+# - Copy cert to haproxy/ssl/certs/haproxy.crt
+# - Copy key to haproxy/ssl/certs/haproxy.key
+# - Combine: cat haproxy/ssl/certs/haproxy.crt haproxy/ssl/certs/haproxy.key > haproxy/ssl/certs/haproxy.pem
 ```
 
 ### **Scaling Considerations**
@@ -708,29 +830,85 @@ External LB Rules:
 
 ```
 minio-ratelimit/
-├── haproxy.cfg                    # Main HAProxy config with Lua integration
-├── extract_api_keys.lua           # Unified Lua script for all auth methods
+├── haproxy/
+│   ├── haproxy.cfg                # Main HAProxy config with Lua integration
+│   ├── lua/
+│   │   ├── dynamic_rate_limiter.lua # Dynamic rate limiting logic
+│   │   └── extract_api_keys.lua   # Unified Lua script for all auth methods
+│   ├── config/
+│   │   ├── api_key_groups.map     # Hot-reloadable API key mappings
+│   │   ├── rate_limits_per_minute.map # Per-minute limits by group
+│   │   ├── rate_limits_per_second.map # Per-second limits by group
+│   │   ├── error_messages.map     # Custom error messages
+│   │   └── generated_service_accounts.json # Real MinIO accounts
+│   └── ssl/
+│       └── certs/                 # Generated SSL certificates
+├── scripts/
+│   ├── cleanup.sh                 # Project organization and cleanup utility
+│   ├── check_docker_compose.sh    # Docker Compose version checker
+│   ├── generate-minio-service-accounts.sh # Real MinIO service account generator
+│   ├── generate-ssl-haproxy-certificates.sh # SSL certificate generation
+│   ├── generate_test_tokens.sh    # Test token generator
+│   ├── haproxy_validate.sh        # HAProxy configuration validator
+│   ├── lua_validate.sh            # Lua scripts syntax validator
+│   ├── manage-dynamic-limits      # Unified configuration management script
+│   ├── test_haproxy.sh            # HAProxy configuration tester
+│   └── verify_all.sh              # Complete validation suite
+├── cmd/
+│   └── ratelimit-test/            # Fast parallel testing framework
+│       ├── build/                 # Compiled binary location
+│       ├── results/               # Test results output directory
+│       ├── main.go                # Optimized 60-second test suite
+│       ├── go.mod                 # Go module dependencies
+│       └── go.sum                 # Go module checksums
+├── config/                        # Base configuration templates
 ├── docker-compose.yml             # Production deployment setup
-├── generate-service-accounts.sh   # Real MinIO service account generator
-├── manage-dynamic-limits          # Unified configuration management script
-├── ssl/
-│   ├── generate-certificates.sh   # SSL certificate generation
-│   └── certs/                     # Generated SSL certificates
-├── config/
-│   ├── api_key_groups.map         # Hot-reloadable API key mappings
-│   ├── rate_limits_per_minute.map # Per-minute limits by group
-│   ├── rate_limits_per_second.map # Per-second limits by group
-│   ├── error_messages.map         # Custom error messages
-│   ├── generated_service_accounts.json # Real MinIO accounts
-│   └── backups/                   # Automatic configuration backups
-└── cmd/
-    └── comprehensive-test/        # Fast parallel testing framework
-        ├── fast_parallel.go       # Optimized 60-second test suite
-        ├── go.mod                 # Go module dependencies
-        └── go.sum                 # Go module checksums
+├── docker_compose_targets.mk      # Docker Compose Makefile targets
+├── linting_targets.mk             # Linting and validation Makefile targets
+├── ratelimit_targets.mk           # Rate limiting test Makefile targets
+├── Makefile                       # Main project Makefile
+├── README.md                      # This file
+├── TECHNICAL_DOCUMENTATION.md     # Technical deep dive documentation
+├── VALIDATION_GUIDE.md            # Testing and validation guide
+└── .bin/                          # Archived resources and development tools
+    ├── archived_scripts/          # Old script versions
+    ├── backups/                   # Configuration backups
+    ├── build_artifacts/           # Build outputs
+    ├── debug_tools/               # Development debugging tools
+    ├── development_tools/         # Development utilities
+    ├── docs_archive/              # Historical documentation
+    ├── old_configs/               # Previous configurations
+    ├── old_lua_scripts/           # Previous Lua script versions
+    ├── test_data/                 # Test datasets
+    └── test_results/              # Historical test results
 ```
 
 ---
+
+## 🧹 **Project Maintenance**
+
+### **Project Organization**
+
+To maintain a clean project structure, use the cleanup utility:
+
+```bash
+make cleanup
+```
+
+This will organize development files, archived resources, and non-essential components into the `.bin` directory while preserving the core project files.
+
+The cleanup process:
+- Moves old scripts and backups to appropriate subdirectories
+- Consolidates test results and build artifacts
+- Creates a summary of moved files
+- Preserves all files (nothing is deleted)
+
+### **Directory Structure Management**
+
+The project automatically maintains a well-organized directory structure:
+- Core components in their respective directories (`haproxy/`, `scripts/`, etc.)
+- Development and archived files in `.bin/` subdirectories
+- Temporary files segregated from production code
 
 ## 🔧 **Troubleshooting**
 
@@ -746,9 +924,9 @@ curl -I http://localhost/test-bucket/ -H "Authorization: AWS key:sig" | grep X-A
 ```
 
 #### **2. Rate Limiting Not Applied**
-```bash  
+```bash
 # Verify API key mapping
-./manage-dynamic-limits show-config | grep YOUR_KEY
+./scripts/manage-dynamic-limits show-config | grep YOUR_KEY
 
 # Check rate group assignment
 curl -I http://localhost/test-bucket/ -H "Authorization: AWS YOUR_KEY:sig" | grep X-RateLimit-Group
@@ -766,11 +944,32 @@ echo "clear map #0" | socat stdio unix-connect:/tmp/haproxy.sock
 #### **4. SSL Certificate Issues**
 ```bash
 # Verify certificate
-openssl x509 -in ssl/certs/haproxy.crt -text -noout
+openssl x509 -in haproxy/ssl/certs/haproxy.crt -text -noout
 
 # Test HTTPS connection
 curl -k -I https://localhost/test-bucket/
 ```
+
+#### **5. CI/CD Pipeline Issues**
+```bash
+# Local CI simulation
+make ci-setup && make ci-validate
+
+# Test Docker Compose command detection
+./scripts/generate-minio-service-accounts.sh
+
+# Verify version consistency
+make verify-versions
+
+# Run the same integration tests as CI
+make up && make test-quick && make down
+```
+
+**Common CI Issues:**
+- **Service account generation fails**: Ensure Docker Compose is available and detectable
+- **Test results path errors**: Check that `test-results/` directory is created correctly  
+- **Go slice bounds panic**: Update to latest version with `safeKeyPrefix` helper function
+- **Coverage file missing**: Verify paths in `linting_targets.mk` are correct
 
 ### **Performance Tuning**
 
@@ -779,12 +978,12 @@ curl -k -I https://localhost/test-bucket/
 # Increase table size for more API keys
 stick-table type string len 64 size 1000k expire 2m
 
-# Adjust expiry for longer rate windows  
+# Adjust expiry for longer rate windows
 stick-table type string len 64 size 100k expire 5m
 ```
 
 #### **Lua Performance**
-```lua  
+```lua
 -- Cache compiled patterns for better performance
 local aws4_pattern = "^AWS4%-HMAC%-SHA256"
 local credential_pattern = "Credential=([^,]+)"
@@ -810,10 +1009,41 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) file for 
 ## 🤝 **Contributing**
 
 1. Fork the repository
-2. Create a feature branch  
+2. Create a feature branch
 3. Make your changes
 4. Add tests for new functionality
-5. Submit a pull request
+5. Run local validation: `make validate-all`
+6. Submit a pull request
+
+**CI/CD**: The project uses a consolidated GitHub Actions workflow (`.github/workflows/ci.yml`) that automatically runs linting, testing, integration tests, and version verification on all pull requests.
+
+### **Continuous Integration**
+
+The project uses a streamlined CI pipeline with the following jobs:
+
+1. **Setup**: Version extraction and environment validation
+2. **Lint & Test**: Code quality and unit tests (runs in parallel)
+3. **Integration Tests**: Full system validation with Docker Compose
+4. **Build**: Final verification and artifact creation
+
+All CI jobs use existing `make` commands for consistency with local development:
+
+```bash
+# CI Setup (generates service accounts in CI environment)
+make ci-setup
+
+# Linting and validation
+make ci-validate
+
+# Integration testing
+make validate-all
+make up && make test-quick && make down
+
+# Build verification
+make verify-versions
+```
+
+The CI workflow automatically detects Docker Compose version (v1 vs v2) and provides comprehensive test result artifacts for debugging CI failures.
 
 For major changes, please open an issue first to discuss the proposed changes.
 

@@ -1,0 +1,1599 @@
+{
+  "summary": {
+    "TotalTests": 4,
+    "Duration": 6247519417,
+    "ByGroup": {
+      "premium": {
+        "APIKey": "",
+        "Group": "premium",
+        "Method": "Combined",
+        "RequestsSent": 203,
+        "Success": 122,
+        "RateLimited": 0,
+        "Errors": 81,
+        "AvgLatencyMs": 106,
+        "AuthMethod": "",
+        "RateLimitGroup": "",
+        "BurstHits": 0,
+        "MinuteHits": 0,
+        "HeaderCaptures": null,
+        "RateLimitDetails": {
+          "LimitPerSecond": 0,
+          "LimitPerMinute": 0,
+          "Limit": 0,
+          "RemainingSecond": 0,
+          "RemainingMinute": 0,
+          "CurrentPerSecond": 0,
+          "CurrentPerMinute": 0,
+          "ResetTime": 0
+        },
+        "ErrorDetails": {
+          "Bad Request (Expected - Test Data)": 40,
+          "Other Error: Put \"http://localhost/test-bucket/minio-test-5HQZO7ED-72.txt?partNumber=1\u0026uploadId=ZGM3NGNmYmMtNjBiYi00MWFkLTk2NGYtODZkMGQzYmNlNWQxLmIzNzI1YWMxLTJjMzMtNDFjZi04MzIwLTgwYzY2MjBmNzZmNngxNzU2OTgxMjI1MTQxMTY0ODc2\": context deadline exceeded": 1
+        },
+        "ErrorExamples": null
+      }
+    },
+    "AuthMethods": {
+      "v2_header_lua": 1
+    },
+    "TotalRequests": 203,
+    "TotalSuccess": 122,
+    "TotalLimited": 0,
+    "TotalErrors": 81,
+    "RateLimitAnalysis": {
+      "premium": {
+        "Group": "premium",
+        "EffectiveLimit": 100,
+        "ObservedBursts": 0,
+        "AverageReset": 0,
+        "SuccessRate": 60.09852216748769,
+        "ThrottleEvents": []
+      }
+    },
+    "BurstPatterns": {
+      "premium": [
+        {
+          "Timestamp": "2025-09-04T15:50:20.481792+05:30",
+          "RequestCount": 20,
+          "SuccessCount": 0,
+          "Throttled": false
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.600203+05:30",
+          "RequestCount": 20,
+          "SuccessCount": 0,
+          "Throttled": false
+        }
+      ]
+    },
+    "HeaderAnalysis": {
+      "UniqueAuthMethods": [
+        "v2_header_lua"
+      ],
+      "RateLimitHeaders": {
+        "X-Ratelimit-Limit-Per-Second": 100
+      },
+      "ResponsePatterns": {
+        "400": 80
+      },
+      "ErrorBreakdown": null
+    }
+  },
+  "detailed_results": [
+    {
+      "APIKey": "5HQZO7EDOM4XBNO642GQ",
+      "Group": "premium",
+      "Method": "HTTP-API",
+      "RequestsSent": 40,
+      "Success": 0,
+      "RateLimited": 0,
+      "Errors": 40,
+      "AvgLatencyMs": 57,
+      "AuthMethod": "v2_header_lua",
+      "RateLimitGroup": "premium",
+      "BurstHits": 0,
+      "MinuteHits": 0,
+      "HeaderCaptures": [
+        {
+          "Timestamp": "2025-09-04T15:50:20.481748+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "4",
+            "X-Ratelimit-Current-Per-Second": "4",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4996",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 94
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.562382+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "13",
+            "X-Ratelimit-Current-Per-Second": "13",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4987",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 5
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.639312+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "29",
+            "X-Ratelimit-Current-Per-Second": "29",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4971",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.718757+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "31",
+            "X-Ratelimit-Current-Per-Second": "31",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4969",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 3
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.771625+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "34",
+            "X-Ratelimit-Current-Per-Second": "34",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4966",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.829234+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "36",
+            "X-Ratelimit-Current-Per-Second": "36",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4964",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 7
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.881159+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "38",
+            "X-Ratelimit-Current-Per-Second": "38",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4962",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.9351+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "40",
+            "X-Ratelimit-Current-Per-Second": "40",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4960",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 3
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.990406+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "42",
+            "X-Ratelimit-Current-Per-Second": "42",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4958",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 4
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.043579+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "45",
+            "X-Ratelimit-Current-Per-Second": "45",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4955",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.098125+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "47",
+            "X-Ratelimit-Current-Per-Second": "47",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4953",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 4
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.150578+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "49",
+            "X-Ratelimit-Current-Per-Second": "49",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4951",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.202448+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "52",
+            "X-Ratelimit-Current-Per-Second": "52",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4948",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.255295+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "55",
+            "X-Ratelimit-Current-Per-Second": "55",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4945",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.307042+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "58",
+            "X-Ratelimit-Current-Per-Second": "58",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4942",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.360129+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "61",
+            "X-Ratelimit-Current-Per-Second": "61",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4939",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.412584+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "64",
+            "X-Ratelimit-Current-Per-Second": "64",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4936",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.464914+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "67",
+            "X-Ratelimit-Current-Per-Second": "64",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4933",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.517037+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "70",
+            "X-Ratelimit-Current-Per-Second": "63",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4930",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.570463+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "73",
+            "X-Ratelimit-Current-Per-Second": "63",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4927",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.624839+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "76",
+            "X-Ratelimit-Current-Per-Second": "62",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4924",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 3
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.677172+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "79",
+            "X-Ratelimit-Current-Per-Second": "62",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4921",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.728438+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "83",
+            "X-Ratelimit-Current-Per-Second": "62",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4917",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.780115+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "86",
+            "X-Ratelimit-Current-Per-Second": "62",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4914",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.831743+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "89",
+            "X-Ratelimit-Current-Per-Second": "62",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4911",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.884235+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "92",
+            "X-Ratelimit-Current-Per-Second": "61",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4908",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.93863+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "95",
+            "X-Ratelimit-Current-Per-Second": "61",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4905",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 3
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:21.991929+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:21 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "98",
+            "X-Ratelimit-Current-Per-Second": "60",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4902",
+            "X-Ratelimit-Reset": "1756981281"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.044569+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "101",
+            "X-Ratelimit-Current-Per-Second": "60",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4899",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.097526+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "104",
+            "X-Ratelimit-Current-Per-Second": "59",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4896",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.1491+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "107",
+            "X-Ratelimit-Current-Per-Second": "59",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4893",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.200426+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "111",
+            "X-Ratelimit-Current-Per-Second": "60",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4889",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.252502+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "113",
+            "X-Ratelimit-Current-Per-Second": "58",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4887",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.304763+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "116",
+            "X-Ratelimit-Current-Per-Second": "58",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4884",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.357918+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "119",
+            "X-Ratelimit-Current-Per-Second": "58",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4881",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.410667+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "122",
+            "X-Ratelimit-Current-Per-Second": "57",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4878",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.462495+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "126",
+            "X-Ratelimit-Current-Per-Second": "58",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4874",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.514623+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "129",
+            "X-Ratelimit-Current-Per-Second": "58",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4871",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.567426+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "132",
+            "X-Ratelimit-Current-Per-Second": "58",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4868",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:22.620212+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:22 GMT",
+            "Server": "MinIO",
+            "X-Api-Key": "5HQZO7EDOM4XBNO642GQ",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "135",
+            "X-Ratelimit-Current-Per-Second": "58",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4865",
+            "X-Ratelimit-Reset": "1756981282"
+          },
+          "LatencyMs": 1
+        }
+      ],
+      "RateLimitDetails": {
+        "LimitPerSecond": 100,
+        "LimitPerMinute": 5000,
+        "Limit": 0,
+        "RemainingSecond": 0,
+        "RemainingMinute": 0,
+        "CurrentPerSecond": 58,
+        "CurrentPerMinute": 135,
+        "ResetTime": 0
+      },
+      "ErrorDetails": {
+        "Bad Request (Expected - Test Data)": 40
+      },
+      "ErrorExamples": [
+        {
+          "StatusCode": 400,
+          "Error": "HTTP 400 Bad Request",
+          "Timestamp": "2025-09-04T15:50:20.481758+05:30",
+          "Method": "HTTP-API"
+        },
+        {
+          "StatusCode": 400,
+          "Error": "HTTP 400 Bad Request",
+          "Timestamp": "2025-09-04T15:50:20.562388+05:30",
+          "Method": "HTTP-API"
+        },
+        {
+          "StatusCode": 400,
+          "Error": "HTTP 400 Bad Request",
+          "Timestamp": "2025-09-04T15:50:20.639318+05:30",
+          "Method": "HTTP-API"
+        },
+        {
+          "StatusCode": 400,
+          "Error": "HTTP 400 Bad Request",
+          "Timestamp": "2025-09-04T15:50:20.718765+05:30",
+          "Method": "HTTP-API"
+        },
+        {
+          "StatusCode": 400,
+          "Error": "HTTP 400 Bad Request",
+          "Timestamp": "2025-09-04T15:50:20.771634+05:30",
+          "Method": "HTTP-API"
+        }
+      ]
+    },
+    {
+      "APIKey": "5HQZO7EDOM4XBNO642GQ",
+      "Group": "premium",
+      "Method": "AWS-S3-Go",
+      "RequestsSent": 50,
+      "Success": 50,
+      "RateLimited": 0,
+      "Errors": 0,
+      "AvgLatencyMs": 59,
+      "AuthMethod": "",
+      "RateLimitGroup": "",
+      "BurstHits": 0,
+      "MinuteHits": 0,
+      "HeaderCaptures": [],
+      "RateLimitDetails": {
+        "LimitPerSecond": 0,
+        "LimitPerMinute": 0,
+        "Limit": 0,
+        "RemainingSecond": 0,
+        "RemainingMinute": 0,
+        "CurrentPerSecond": 0,
+        "CurrentPerMinute": 0,
+        "ResetTime": 0
+      },
+      "ErrorDetails": {},
+      "ErrorExamples": []
+    },
+    {
+      "APIKey": "5HQZO7EDOM4XBNO642GQ",
+      "Group": "premium",
+      "Method": "MinIO-Go",
+      "RequestsSent": 73,
+      "Success": 72,
+      "RateLimited": 0,
+      "Errors": 1,
+      "AvgLatencyMs": 70,
+      "AuthMethod": "",
+      "RateLimitGroup": "",
+      "BurstHits": 0,
+      "MinuteHits": 0,
+      "HeaderCaptures": [],
+      "RateLimitDetails": {
+        "LimitPerSecond": 0,
+        "LimitPerMinute": 0,
+        "Limit": 0,
+        "RemainingSecond": 0,
+        "RemainingMinute": 0,
+        "CurrentPerSecond": 0,
+        "CurrentPerMinute": 0,
+        "ResetTime": 0
+      },
+      "ErrorDetails": {
+        "Other Error: Put \"http://localhost/test-bucket/minio-test-5HQZO7ED-72.txt?partNumber=1\u0026uploadId=ZGM3NGNmYmMtNjBiYi00MWFkLTk2NGYtODZkMGQzYmNlNWQxLmIzNzI1YWMxLTJjMzMtNDFjZi04MzIwLTgwYzY2MjBmNzZmNngxNzU2OTgxMjI1MTQxMTY0ODc2\": context deadline exceeded": 1
+      },
+      "ErrorExamples": [
+        {
+          "StatusCode": 0,
+          "Error": "Put \"http://localhost/test-bucket/minio-test-5HQZO7ED-72.txt?partNumber=1\u0026uploadId=ZGM3NGNmYmMtNjBiYi00MWFkLTk2NGYtODZkMGQzYmNlNWQxLmIzNzI1YWMxLTJjMzMtNDFjZi04MzIwLTgwYzY2MjBmNzZmNngxNzU2OTgxMjI1MTQxMTY0ODc2\": context deadline exceeded",
+          "Timestamp": "2025-09-04T15:50:25.484519+05:30",
+          "Method": "MinIO-Go"
+        }
+      ]
+    },
+    {
+      "APIKey": "5HQZO7EDOM4XBNO642GQ",
+      "Group": "premium",
+      "Method": "Burst-Test",
+      "RequestsSent": 40,
+      "Success": 0,
+      "RateLimited": 0,
+      "Errors": 40,
+      "AvgLatencyMs": 156,
+      "AuthMethod": "",
+      "RateLimitGroup": "",
+      "BurstHits": 0,
+      "MinuteHits": 0,
+      "HeaderCaptures": [
+        {
+          "Timestamp": "2025-09-04T15:50:20.481792+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "4",
+            "X-Ratelimit-Current-Per-Second": "4",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4997",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 94
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.505211+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "5",
+            "X-Ratelimit-Current-Per-Second": "5",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4995",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 23
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.537366+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "7",
+            "X-Ratelimit-Current-Per-Second": "7",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4993",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 32
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.542469+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "8",
+            "X-Ratelimit-Current-Per-Second": "8",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4992",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 5
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.549641+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "9",
+            "X-Ratelimit-Current-Per-Second": "9",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4991",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 7
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.556101+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "10",
+            "X-Ratelimit-Current-Per-Second": "10",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4990",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 6
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.559399+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "11",
+            "X-Ratelimit-Current-Per-Second": "11",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4989",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 3
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.56418+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "14",
+            "X-Ratelimit-Current-Per-Second": "14",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4986",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 4
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.570738+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "15",
+            "X-Ratelimit-Current-Per-Second": "15",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4985",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 6
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.572553+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "16",
+            "X-Ratelimit-Current-Per-Second": "16",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4984",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.574212+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "17",
+            "X-Ratelimit-Current-Per-Second": "17",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4983",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.57653+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "18",
+            "X-Ratelimit-Current-Per-Second": "18",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4982",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.579652+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "19",
+            "X-Ratelimit-Current-Per-Second": "19",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4981",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 3
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.581699+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "20",
+            "X-Ratelimit-Current-Per-Second": "20",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4980",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.583513+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "21",
+            "X-Ratelimit-Current-Per-Second": "21",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4979",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.587349+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "22",
+            "X-Ratelimit-Current-Per-Second": "22",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4978",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 3
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.590133+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "23",
+            "X-Ratelimit-Current-Per-Second": "23",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4977",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.592777+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "24",
+            "X-Ratelimit-Current-Per-Second": "24",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4976",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.595507+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "25",
+            "X-Ratelimit-Current-Per-Second": "25",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4975",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:20.598479+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:20 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "26",
+            "X-Ratelimit-Current-Per-Second": "26",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4974",
+            "X-Ratelimit-Reset": "1756981280"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.600203+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "167",
+            "X-Ratelimit-Current-Per-Second": "36",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4833",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.60178+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "168",
+            "X-Ratelimit-Current-Per-Second": "37",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4832",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.60301+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "169",
+            "X-Ratelimit-Current-Per-Second": "38",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4831",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.604222+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "170",
+            "X-Ratelimit-Current-Per-Second": "39",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4830",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.605322+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "171",
+            "X-Ratelimit-Current-Per-Second": "40",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4829",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.606468+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "172",
+            "X-Ratelimit-Current-Per-Second": "41",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4828",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.607975+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "173",
+            "X-Ratelimit-Current-Per-Second": "42",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4827",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.608978+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "174",
+            "X-Ratelimit-Current-Per-Second": "43",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4826",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.610099+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "175",
+            "X-Ratelimit-Current-Per-Second": "44",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4825",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.611473+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "176",
+            "X-Ratelimit-Current-Per-Second": "45",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4824",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.613912+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "177",
+            "X-Ratelimit-Current-Per-Second": "46",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4823",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.616038+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "178",
+            "X-Ratelimit-Current-Per-Second": "46",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4822",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.618253+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "179",
+            "X-Ratelimit-Current-Per-Second": "47",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4821",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 2
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.619495+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "180",
+            "X-Ratelimit-Current-Per-Second": "48",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4820",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.620924+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "181",
+            "X-Ratelimit-Current-Per-Second": "49",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4819",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.622909+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "182",
+            "X-Ratelimit-Current-Per-Second": "50",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4818",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.624264+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "183",
+            "X-Ratelimit-Current-Per-Second": "51",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4817",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.627953+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "184",
+            "X-Ratelimit-Current-Per-Second": "52",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4816",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 3
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.631687+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "185",
+            "X-Ratelimit-Current-Per-Second": "53",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4815",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 3
+        },
+        {
+          "Timestamp": "2025-09-04T15:50:23.633164+05:30",
+          "StatusCode": 400,
+          "Headers": {
+            "Date": "Thu, 04 Sep 2025 10:20:23 GMT",
+            "X-Auth-Method": "v2_header_lua",
+            "X-Ratelimit-Current-Per-Minute": "186",
+            "X-Ratelimit-Current-Per-Second": "54",
+            "X-Ratelimit-Group": "premium",
+            "X-Ratelimit-Limit-Per-Minute": "5000",
+            "X-Ratelimit-Limit-Per-Second": "100",
+            "X-Ratelimit-Remaining": "4814",
+            "X-Ratelimit-Reset": "1756981283"
+          },
+          "LatencyMs": 1
+        }
+      ],
+      "RateLimitDetails": {
+        "LimitPerSecond": 0,
+        "LimitPerMinute": 0,
+        "Limit": 0,
+        "RemainingSecond": 0,
+        "RemainingMinute": 0,
+        "CurrentPerSecond": 0,
+        "CurrentPerMinute": 0,
+        "ResetTime": 0
+      },
+      "ErrorDetails": {},
+      "ErrorExamples": []
+    }
+  ],
+  "export_time": "2025-09-04T15:50:26.634844+05:30",
+  "version": "1.0.0"
+}

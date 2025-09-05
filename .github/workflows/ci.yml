@@ -1,0 +1,163 @@
+name: MinIO Rate Limit CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  setup:
+    name: Setup and Version Check
+    runs-on: ubuntu-latest
+    outputs:
+      go_version: ${{ steps.extract_versions.outputs.go_version }}
+      haproxy_version: ${{ steps.extract_versions.outputs.haproxy_version }}
+      minio_version: ${{ steps.extract_versions.outputs.minio_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version information
+        id: extract_versions
+        run: |
+          source ./scripts/export_versions.sh 2>/dev/null || true
+          
+          GO_VERSION=$(grep -E '^GO_VERSION :=' versions.mk | sed 's/GO_VERSION := //')
+          HAPROXY_VERSION=$(grep -E '^HAPROXY_VERSION :=' versions.mk | sed 's/HAPROXY_VERSION := //')
+          MINIO_VERSION=$(grep -E '^MINIO_VERSION :=' versions.mk | sed 's/MINIO_VERSION := //')
+          
+          echo "go_version=$GO_VERSION" >> $GITHUB_OUTPUT
+          echo "haproxy_version=$HAPROXY_VERSION" >> $GITHUB_OUTPUT
+          echo "minio_version=$MINIO_VERSION" >> $GITHUB_OUTPUT
+          
+          echo "Using versions: Go=$GO_VERSION, HAProxy=$HAPROXY_VERSION, MinIO=$MINIO_VERSION"
+
+      - name: Check versions
+        run: make check-versions
+
+  lint:
+    name: Lint and Validate
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ needs.setup.outputs.go_version }}
+
+      - name: Setup CI environment
+        run: make ci-setup
+        env:
+          CI: true
+
+      - name: Run linting and validation
+        run: make ci-validate
+        env:
+          CI: true
+          CI_NO_COLOR: true
+
+  test:
+    name: Run Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ needs.setup.outputs.go_version }}
+
+      - name: Run CI tests
+        run: make ci-test
+        env:
+          CI: true
+
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-coverage
+          path: test-results/coverage.out
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint, setup]
+    env:
+      HAPROXY_VERSION: ${{ needs.setup.outputs.haproxy_version }}
+      MINIO_VERSION: ${{ needs.setup.outputs.minio_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ needs.setup.outputs.go_version }}
+
+      - name: Setup CI environment
+        run: make ci-setup
+        env:
+          CI: true
+
+      - name: Run full validation tests
+        run: make validate-all
+        env:
+          CI: true
+          CI_NO_COLOR: true
+
+      - name: Start services
+        run: make up
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for services to be ready..."
+          sleep 15
+          make status
+
+      - name: Run integration tests
+        run: make test-quick
+
+      - name: Stop services
+        run: make down
+        if: always()
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: test-results/
+
+  build:
+    name: Build and Verify
+    runs-on: ubuntu-latest
+    needs: [lint, test, setup]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ needs.setup.outputs.go_version }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test tool
+        run: |
+          cd cmd/ratelimit-test
+          go build -o build/minio-ratelimit-test *.go
+          ./build/minio-ratelimit-test -h
+
+      - name: Verify versions
+        run: make verify-versions
+        env:
+          CI: true

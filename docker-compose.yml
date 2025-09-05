@@ -1,15 +1,22 @@
 version: '3.8'
 
+# Environment variables used:
+# - MINIO_VERSION: MinIO container version
+# - HAPROXY_VERSION: HAProxy container version
+# Both variables have default values in the service definitions
+
 services:
   # MinIO for testing S3 requests
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: minio/minio:${MINIO_VERSION:-RELEASE.2025-04-22T22-12-26Z}
     ports:
       - "9001:9000"
       - "9091:9001"
     environment:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
+      MINIO_API_REQUESTS_MAX: 8000
+
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -21,17 +28,17 @@ services:
 
   # HAProxy Instance 1 - Active-Active Setup
   haproxy1:
-    image: haproxy:3.0
+    image: haproxy:${HAPROXY_VERSION:-3.0}
     ports:
       - "80:80"
       - "443:443"
       - "8404:8404"
     volumes:
-      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-      - ./extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
-      - ./dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
-      - ./ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
-      - ./config:/usr/local/etc/haproxy/config:ro
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./haproxy/lua/extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
+      - ./haproxy/lua/dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
+      - ./haproxy/ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
+      - ./haproxy/config:/usr/local/etc/haproxy/config:ro
     depends_on:
       - minio
     healthcheck:
@@ -42,17 +49,17 @@ services:
 
   # HAProxy Instance 2 - Active-Active Setup
   haproxy2:
-    image: haproxy:3.0
+    image: haproxy:${HAPROXY_VERSION:-3.0}
     ports:
       - "81:80"
       - "444:443"
       - "8405:8404"
     volumes:
-      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-      - ./extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
-      - ./dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
-      - ./ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
-      - ./config:/usr/local/etc/haproxy/config:ro
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./haproxy/lua/extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
+      - ./haproxy/lua/dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
+      - ./haproxy/ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
+      - ./haproxy/config:/usr/local/etc/haproxy/config:ro
     depends_on:
       - minio
     healthcheck:

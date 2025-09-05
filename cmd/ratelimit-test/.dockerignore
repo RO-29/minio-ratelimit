@@ -1,0 +1,37 @@
+# Build artifacts
+build/
+coverage/
+*.out
+*.prof
+
+# Test files
+*_test.go
+
+# Documentation
+README.md
+*.md
+
+# Version control
+.git
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# JSON output files
+*.json
+
+# Log files
+*.log
