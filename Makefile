@@ -161,7 +161,7 @@ update-maps: docker-compose-info
 
 # Define variables for test commands
 TEST_CMD = cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test
-TEST_RESULTS_DIR = ./cmd/ratelimit-test/results
+TEST_RESULTS_DIR = ./test-results
 
 # Include linting, validation, rate limiting, and Docker Compose targets
 include linting_targets.mk
@@ -176,7 +176,7 @@ ensure-results-dir:
 test-basic: ensure-results-dir
 	@echo "🧪 Running tests for BASIC tier accounts only..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@$(TEST_CMD) -tiers=basic -duration=60s -accounts=5 > $(TEST_RESULTS_DIR)/basic_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -tiers=basic -duration=60s -accounts=5 > ../../test-results/basic_results.json
 	@echo "✅ Basic tier testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/basic_results.json"
 
@@ -184,7 +184,7 @@ test-basic: ensure-results-dir
 test-standard: ensure-results-dir
 	@echo "🧪 Running tests for STANDARD tier accounts only..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@$(TEST_CMD) -tiers=standard -duration=60s -accounts=5 > $(TEST_RESULTS_DIR)/standard_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -tiers=standard -duration=60s -accounts=5 > ../../test-results/standard_results.json
 	@echo "✅ Standard tier testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/standard_results.json"
 
@@ -192,7 +192,7 @@ test-standard: ensure-results-dir
 test-premium: ensure-results-dir
 	@echo "🧪 Running tests for PREMIUM tier accounts only..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@$(TEST_CMD) -tiers=premium -duration=60s -accounts=5 > $(TEST_RESULTS_DIR)/premium_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -tiers=premium -duration=60s -accounts=5 > ../../test-results/premium_results.json
 	@echo "✅ Premium tier testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/premium_results.json"
 
@@ -200,7 +200,7 @@ test-premium: ensure-results-dir
 test-stress: ensure-results-dir
 	@echo "💪 Running PREMIUM STRESS test to find actual limits..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@$(TEST_CMD) -stress-premium -duration=120s -accounts=5 > $(TEST_RESULTS_DIR)/stress_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -stress-premium -duration=120s -accounts=5 > ../../test-results/stress_results.json
 	@echo "✅ Premium stress testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/stress_results.json"
 
@@ -208,7 +208,7 @@ test-stress: ensure-results-dir
 test-quick: ensure-results-dir
 	@echo "🚀 Running QUICK test (15s duration)..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@$(TEST_CMD) -duration=15s -accounts=2 > $(TEST_RESULTS_DIR)/quick_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=15s -accounts=2 > ../../test-results/quick_results.json
 	@echo "✅ Quick testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/quick_results.json"
 
@@ -216,7 +216,7 @@ test-quick: ensure-results-dir
 test-extended: ensure-results-dir
 	@echo "⏰ Running EXTENDED test (5m duration)..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@$(TEST_CMD) -duration=5m -accounts=3 > $(TEST_RESULTS_DIR)/extended_results.json
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=5m -accounts=3 > ../../test-results/extended_results.json
 	@echo "✅ Extended testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/extended_results.json"
 
@@ -224,7 +224,7 @@ test-extended: ensure-results-dir
 test-export: ensure-results-dir
 	@echo "📊 Running test with DETAILED JSON export..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@$(TEST_CMD) -duration=60s -accounts=3 -json -output=$(TEST_RESULTS_DIR)/detailed_export.json > $(TEST_RESULTS_DIR)/test_output.log
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=60s -accounts=3 -json -output=../../test-results/detailed_export.json > ../../test-results/test_output.log
 	@echo "✅ Testing with JSON export complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/detailed_export.json"
 
@@ -232,7 +232,7 @@ test-export: ensure-results-dir
 test-all-tiers: ensure-results-dir
 	@echo "🔬 Running COMPREHENSIVE tests across ALL TIERS..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@$(TEST_CMD) -duration=90s -accounts=3 -tiers=basic,standard,premium -json -output=$(TEST_RESULTS_DIR)/all_tiers_results.json > $(TEST_RESULTS_DIR)/all_tiers_output.log
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=90s -accounts=3 -tiers=basic,standard,premium -json -output=../../test-results/all_tiers_results.json > ../../test-results/all_tiers_output.log
 	@echo "✅ All-tier comprehensive testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/all_tiers_results.json"
 
@@ -245,10 +245,10 @@ test-custom: ensure-results-dir
 	read -p "Export JSON? (y/n): " export_json; \
 	export_option=""; \
 	if [ "$$export_json" = "y" ]; then \
-		export_option="-json -output=$(TEST_RESULTS_DIR)/custom_results.json"; \
+		export_option="-json -output=../../test-results/custom_results.json"; \
 	fi; \
 	cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go; \
-	./build/minio-ratelimit-test -duration=$$duration -accounts=$$accounts -tiers=$$tiers $$export_option > $(TEST_RESULTS_DIR)/custom_output.log
+	./build/minio-ratelimit-test -duration=$$duration -accounts=$$accounts -tiers=$$tiers $$export_option > ../../test-results/custom_output.log
 	@echo "✅ Custom testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/custom_output.log"
 
@@ -258,7 +258,7 @@ compare-results:
 	@read -p "First results file: " file1; \
 	read -p "Second results file: " file2; \
 	echo "Comparing $${file1} with $${file2}..."; \
-	cd ./cmd/ratelimit-test && go run ./scripts/compare_results.go -file1=$(TEST_RESULTS_DIR)/$$file1 -file2=$(TEST_RESULTS_DIR)/$$file2
+	cd ./cmd/ratelimit-test && go run ./scripts/compare_results.go -file1=../../test-results/$$file1 -file2=../../test-results/$$file2
 	@echo "✅ Comparison complete!"
 
 # Clean up and organize project files
