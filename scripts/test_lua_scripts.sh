@@ -2,20 +2,30 @@
 # Lua script test runner for HAProxy Lua scripts
 # A simplified version that just reports script availability
 
-# Colors for output - disable if not in terminal or if NO_COLOR is set
-if [ -t 1 ] && [ -z "$NO_COLOR" ] && [ -z "$CI_NO_COLOR" ]; then
-  RED='\033[0;31m'
-  GREEN='\033[0;32m'
-  YELLOW='\033[0;33m'
-  BLUE='\033[0;34m'
-  RESET='\033[0m'
-else
-  RED=''
-  GREEN=''
-  YELLOW=''
-  BLUE=''
-  RESET=''
-fi
+# Function to print with/without colors
+print_styled() {
+  local color="$1"
+  local message="$2"
+  
+  # Completely disable color in CI or when requested
+  if [ -n "$CI" ] || [ -n "$CI_NO_COLOR" ] || [ -n "$NO_COLOR" ] || [ ! -t 1 ]; then
+    printf "%s\n" "$message"
+  else
+    case "$color" in
+      "red") printf "\033[0;31m%s\033[0m\n" "$message" ;;
+      "green") printf "\033[0;32m%s\033[0m\n" "$message" ;;
+      "yellow") printf "\033[0;33m%s\033[0m\n" "$message" ;;
+      "blue") printf "\033[0;34m%s\033[0m\n" "$message" ;;
+      *) printf "%s\n" "$message" ;;
+    esac
+  fi
+}
+
+# No need for color variables anymore, we'll use the function instead
+RED="red"
+GREEN="green"
+YELLOW="yellow"
+BLUE="blue"
 
 # Directory containing Lua scripts
 SCRIPT_DIR="./haproxy/lua"
@@ -24,11 +34,11 @@ TEST_OUTPUT="./test-results"
 # Create output directory
 mkdir -p "$TEST_OUTPUT"
 
-echo "${BLUE}=== Lua Scripts Testing ===${RESET}"
+print_styled "$BLUE" "=== Lua Scripts Testing ==="
 
 # Check if Lua directory exists and has files
 if [ ! -d "$SCRIPT_DIR" ]; then
-  echo "${YELLOW}⚠️ Lua scripts directory not found: $SCRIPT_DIR${RESET}"
+  print_styled "$YELLOW" "⚠️ Lua scripts directory not found: $SCRIPT_DIR"
   echo "${GREEN}✅ No Lua scripts to test${RESET}"
   exit 0
 fi
@@ -46,9 +56,9 @@ for script in $LUA_FILES; do
   echo "- $script"
 done
 
-echo "${YELLOW}⚠️ Limited testing capabilities available${RESET}"
-echo "${YELLOW}⚠️ Full testing requires a Lua interpreter with HAProxy libraries${RESET}"
-echo "${GREEN}✅ Basic Lua script check passed!${RESET}"
+print_styled "$YELLOW" "⚠️ Limited testing capabilities available"
+print_styled "$YELLOW" "⚠️ Full testing requires a Lua interpreter with HAProxy libraries"
+print_styled "$GREEN" "✅ Basic Lua script check passed!"
 exit 0
         {
             name = "Empty string",

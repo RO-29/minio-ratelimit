@@ -2,20 +2,30 @@
 # HAProxy Configuration Testing Script
 # A simplified version that just verifies basic functionality
 
-# Colors for output - disable if not in terminal or if NO_COLOR is set
-if [ -t 1 ] && [ -z "$NO_COLOR" ] && [ -z "$CI_NO_COLOR" ]; then
-  RED='\033[0;31m'
-  GREEN='\033[0;32m'
-  YELLOW='\033[0;33m'
-  BLUE='\033[0;34m'
-  RESET='\033[0m'
-else
-  RED=''
-  GREEN=''
-  YELLOW=''
-  BLUE=''
-  RESET=''
-fi
+# Function to print with/without colors
+print_styled() {
+  local color="$1"
+  local message="$2"
+  
+  # Completely disable color in CI or when requested
+  if [ -n "$CI" ] || [ -n "$CI_NO_COLOR" ] || [ -n "$NO_COLOR" ] || [ ! -t 1 ]; then
+    printf "%s\n" "$message"
+  else
+    case "$color" in
+      "red") printf "\033[0;31m%s\033[0m\n" "$message" ;;
+      "green") printf "\033[0;32m%s\033[0m\n" "$message" ;;
+      "yellow") printf "\033[0;33m%s\033[0m\n" "$message" ;;
+      "blue") printf "\033[0;34m%s\033[0m\n" "$message" ;;
+      *) printf "%s\n" "$message" ;;
+    esac
+  fi
+}
+
+# No need for color variables anymore, we'll use the function instead
+RED="red"
+GREEN="green"
+YELLOW="yellow"
+BLUE="blue"
 
 # Default paths
 HAPROXY_CONFIG="./haproxy/haproxy.cfg"
@@ -24,11 +34,11 @@ TEST_OUTPUT="./test-results"
 # Create output directory
 mkdir -p "$TEST_OUTPUT"
 
-echo "${BLUE}=== HAProxy Configuration Testing ===${RESET}"
+print_styled "$BLUE" "=== HAProxy Configuration Testing ==="
 
 # Check if config file exists
 if [ ! -f "$HAPROXY_CONFIG" ]; then
-  echo "${RED}❌ HAProxy configuration file not found: $HAPROXY_CONFIG${RESET}"
+  print_styled "$RED" "❌ HAProxy configuration file not found: $HAPROXY_CONFIG"
   exit 1
 fi
 
@@ -66,9 +76,9 @@ echo "Checking server configuration..."
 if ! grep -q "server" "$HAPROXY_CONFIG"; then
   echo "${YELLOW}⚠️  No server configuration found in HAProxy config${RESET}"
 else
-  echo "${GREEN}✅ Server configuration found${RESET}"
+  print_styled "$GREEN" "✅ Server configuration found"
 fi
 
 # Final verdict
-echo "${GREEN}✅ HAProxy configuration tests completed!${RESET}"
+print_styled "$GREEN" "✅ HAProxy configuration tests completed!"
 exit 0

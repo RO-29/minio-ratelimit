@@ -56,7 +56,7 @@ fi
 
 # Local-only mode just checks basic syntax
 if $LOCAL_MODE; then
-  echo "${YELLOW}Running in local-only mode (basic validation)${RESET}"
+  print_styled "$YELLOW" "Running in local-only mode (basic validation)"
 
   # Check for required sections
   echo "Checking for required sections..."
@@ -87,7 +87,7 @@ if $LOCAL_MODE; then
     echo "${YELLOW}⚠️  No stick-table found - rate limiting might not be properly configured${RESET}"
   fi
 
-  echo "${GREEN}✅ Basic HAProxy configuration validation passed!${RESET}"
+  print_styled "$GREEN" "✅ Basic HAProxy configuration validation passed!"
   exit 0
 fi
 

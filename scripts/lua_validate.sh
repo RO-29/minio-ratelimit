@@ -2,20 +2,30 @@
 # Lua Script Validation
 # Supports both strict validation and local-only mode
 
-# Colors for output - disable if not in terminal or if NO_COLOR is set
-if [ -t 1 ] && [ -z "$NO_COLOR" ] && [ -z "$CI_NO_COLOR" ]; then
-  RED='\033[0;31m'
-  GREEN='\033[0;32m'
-  YELLOW='\033[0;33m'
-  BLUE='\033[0;34m'
-  RESET='\033[0m'
-else
-  RED=''
-  GREEN=''
-  YELLOW=''
-  BLUE=''
-  RESET=''
-fi
+# Function to print with/without colors
+print_styled() {
+  local color="$1"
+  local message="$2"
+  
+  # Completely disable color in CI or when requested
+  if [ -n "$CI" ] || [ -n "$CI_NO_COLOR" ] || [ -n "$NO_COLOR" ] || [ ! -t 1 ]; then
+    printf "%s\n" "$message"
+  else
+    case "$color" in
+      "red") printf "\033[0;31m%s\033[0m\n" "$message" ;;
+      "green") printf "\033[0;32m%s\033[0m\n" "$message" ;;
+      "yellow") printf "\033[0;33m%s\033[0m\n" "$message" ;;
+      "blue") printf "\033[0;34m%s\033[0m\n" "$message" ;;
+      *) printf "%s\n" "$message" ;;
+    esac
+  fi
+}
+
+# No need for color variables anymore, we'll use the function instead
+RED="red"
+GREEN="green"
+YELLOW="yellow"
+BLUE="blue"
 
 # Default paths
 LUA_DIR="./haproxy/lua"
@@ -36,7 +46,7 @@ for arg in "$@"; do
   esac
 done
 
-echo "${BLUE}=== Lua Scripts Validation ===${RESET}"
+print_styled "$BLUE" "=== Lua Scripts Validation ==="
 
 # Check if Lua directory exists and has files
 if [ ! -d "$LUA_DIR" ]; then
@@ -54,7 +64,7 @@ fi
 
 # Local-only mode just checks basic syntax
 if $LOCAL_MODE; then
-  echo "${YELLOW}Running in local-only mode (basic validation)${RESET}"
+  print_styled "$YELLOW" "Running in local-only mode (basic validation)"
   
   # Check for basic Lua syntax (simple patterns)
   ERRORS=0
@@ -64,7 +74,7 @@ if $LOCAL_MODE; then
     # Check for unbalanced parentheses, brackets, and braces
     UNBALANCED=$(grep -v "^--" "$script" | tr -d '\n' | grep -E '\(\s*\)|\{\s*\}|\[\s*\]' || echo "")
     if [ ! -z "$UNBALANCED" ]; then
-      echo "${YELLOW}⚠️ Warning: Potentially unbalanced delimiters in $script${RESET}"
+      print_styled "$YELLOW" "⚠️ Warning: Potentially unbalanced delimiters in $script"
     fi
     
     # Check for obvious syntax errors (incomplete function definitions)
@@ -79,7 +89,7 @@ if $LOCAL_MODE; then
     echo "${YELLOW}⚠️ Basic checks found potential issues, but continuing in local-only mode...${RESET}"
   fi
   
-  echo "${GREEN}✅ Basic Lua script validation passed!${RESET}"
+  print_styled "$GREEN" "✅ Basic Lua script validation passed!"
   exit 0
 fi
 

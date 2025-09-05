@@ -1,3 +1,16 @@
+# Color handling for Make
+ifdef CI
+  # Simple echo in CI without colors
+  define print_styled
+    @echo "$(2)"
+  endef
+else
+  # Use colors when not in CI
+  define print_styled
+    @printf "$(1)%s$(RESET)\n" "$(2)"
+  endef
+endif
+
 # Colors for prettier output - disable if in CI
 ifdef CI
   # Disable colors in CI environments
@@ -23,18 +36,18 @@ endif
 
 # Run all linting checks
 lint: lint-go lint-haproxy lint-lua
-	@echo "$(GREEN)✅ All linting checks completed!$(RESET)"
+	$(call print_styled,$(GREEN),✅ All linting checks completed!)
 
 # Lint Go code
 lint-go:
-	@echo "$(CYAN)🔍 Linting Go code...$(RESET)"
+	$(call print_styled,$(CYAN),🔍 Linting Go code...)
 	@cd ./cmd/ratelimit-test && if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run ./... || echo "$(YELLOW)⚠️  Go linting issues found$(RESET)"; \
 	else \
 		echo "$(YELLOW)⚠️  golangci-lint not installed, using basic go vet...$(RESET)"; \
 		go vet ./...; \
 	fi
-	@echo "$(GREEN)✅ Go code linting completed!$(RESET)"
+	$(call print_styled,$(GREEN),✅ Go code linting completed!)
 
 # Check HAProxy configuration syntax
 lint-haproxy:
