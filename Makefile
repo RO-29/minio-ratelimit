@@ -30,8 +30,12 @@
 # Project management:
 #   make cleanup          - Clean up and organize project files into .bin directory
 #   make clean            - Clean up Docker resources
+#   make versions         - Show current versions used in the project
 
-.PHONY: up down restart reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup cleanup
+# Include centralized version control
+include versions.mk
+
+.PHONY: up down restart reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup cleanup versions update-go-version update-haproxy-version update-versions check-versions
 
 # Default target
 help:
@@ -80,7 +84,12 @@ help:
 	@echo "  make ci-validate       - Run validations for CI environment"
 	@echo ""
 	@echo "Project management:"
-	@echo "  make cleanup           - Clean up and organize project files into .bin directory"
+	@echo "  make cleanup                - Clean up and organize project files into .bin directory"
+	@echo "  make versions               - Show current versions used in the project"
+	@echo "  make update-go-version      - Update Go version in all go.mod files"
+	@echo "  make update-haproxy-version - Update HAProxy version in all files"
+	@echo "  make update-versions        - Update all versions throughout the project"
+	@echo "  make check-versions         - Check if environment meets version requirements"
 	@echo ""
 	@echo "Rate limiting specific:"
 	@echo "  make validate-ratelimit - Validate complete rate limiting setup"
@@ -255,3 +264,41 @@ cleanup:
 	@echo "🧹 Cleaning up project files..."
 	@./scripts/cleanup.sh
 	@echo "✅ Project cleanup complete!"
+
+# Display version information
+versions:
+	@echo "🔢 Project Version Information"
+	@echo "=============================="
+	@echo "Go version:              $(GO_VERSION) (toolchain $(GO_TOOLCHAIN_VERSION))"
+	@echo "Lua version:             $(LUA_VERSION)"
+	@echo "HAProxy version:         $(HAPROXY_VERSION)"
+	@echo "Docker Compose version:  $(DOCKER_COMPOSE_VERSION)"
+	@echo "MinIO version:           $(MINIO_VERSION)"
+	@echo ""
+	@echo "Installed Versions:"
+	@if command -v go >/dev/null 2>&1; then echo "Go:            $$(go version | awk '{print $$3}' | sed 's/go//g')"; else echo "Go:            Not installed"; fi
+	@if command -v lua >/dev/null 2>&1; then echo "Lua:           $$(lua -v | awk '{print $$2}')"; else echo "Lua:           Not installed"; fi
+	@if command -v haproxy >/dev/null 2>&1; then echo "HAProxy:       $$(haproxy -v | head -n1 | awk '{print $$3}')"; else echo "HAProxy:       Not installed"; fi
+	@if command -v docker >/dev/null 2>&1; then echo "Docker:        $$(docker --version | awk '{print $$3}' | sed 's/,//g')"; else echo "Docker:        Not installed"; fi
+	@if docker compose version >/dev/null 2>&1; then echo "Docker Compose: $$(docker compose version | awk '{print $$4}')"; elif docker-compose --version >/dev/null 2>&1; then echo "Docker Compose: $$(docker-compose --version | awk '{print $$3}' | sed 's/,//g')"; else echo "Docker Compose: Not installed"; fi
+
+# Update Go version in all go.mod files
+update-go-version:
+	@echo "🔄 Updating Go version to $(GO_VERSION) (toolchain $(GO_TOOLCHAIN_VERSION))..."
+	@./scripts/update_go_version.sh
+	@echo "✅ Go version updated in all go.mod files"
+
+# Update HAProxy version in all project files
+update-haproxy-version:
+	@echo "🔄 Updating HAProxy version to $(HAPROXY_VERSION) in all files..."
+	@./scripts/update_haproxy_version.sh
+	@echo "✅ HAProxy version updated in all files"
+
+# Update all versions in project files
+update-versions: update-go-version update-haproxy-version
+	@echo "🔄 All versions have been updated according to versions.mk"
+	@echo "To verify changes, use: git diff"
+
+# Check if environment meets version requirements
+check-versions:
+	@./scripts/check_versions.sh

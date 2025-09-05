@@ -2,6 +2,14 @@
 # Lua Script Validation
 # Supports both strict validation and local-only mode
 
+# Load versions from versions.mk if available
+if [ -f ./versions.mk ]; then
+  source <(grep -E '^LUA_VERSION' ./versions.mk | sed 's/ := /=/g')
+fi
+
+# Default to 5.3 if not set
+LUA_VERSION=${LUA_VERSION:-5.3}
+
 # Function to print with/without colors
 print_styled() {
   local color="$1"
@@ -171,10 +179,10 @@ exit 0
 
   # Try to pull the image first with a timeout to avoid hanging
   echo "Pulling Lua Docker image..."
-  if timeout 20s docker pull nickblah/lua:5.3-alpine >/dev/null 2>&1; then
+  if timeout 20s docker pull nickblah/lua:${LUA_VERSION}-alpine >/dev/null 2>&1; then
     # Run Docker validation with pre-built Lua image with timeout
     echo "Running Lua validation in Docker..."
-    timeout 20s docker run --rm -v "$TEMP_DIR/scripts:/scripts:ro" -v "$TEMP_DIR/validate_lua.sh:/validate_lua.sh:ro" nickblah/lua:5.3-alpine sh /validate_lua.sh > "$TEST_OUTPUT/lua_check.log" 2>&1
+    timeout 20s docker run --rm -v "$TEMP_DIR/scripts:/scripts:ro" -v "$TEMP_DIR/validate_lua.sh:/validate_lua.sh:ro" nickblah/lua:${LUA_VERSION}-alpine sh /validate_lua.sh > "$TEST_OUTPUT/lua_check.log" 2>&1
     VALIDATION_RESULT=$?
   else
     echo "Docker pull timed out, skipping Docker validation" >> "$TEST_OUTPUT/lua_check.log"

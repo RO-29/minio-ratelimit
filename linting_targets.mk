@@ -59,7 +59,7 @@ lint-haproxy:
 	elif command -v haproxy >/dev/null 2>&1; then \
 		haproxy -c -f ./haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration has errors$(RESET)" && exit 1); \
 	elif docker info >/dev/null 2>&1; then \
-		docker run --rm -v $(PWD)/haproxy:/usr/local/etc/haproxy:ro haproxy:3.0 haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration has errors$(RESET)" && exit 1); \
+		docker run --rm -v $(PWD)/haproxy:/usr/local/etc/haproxy:ro haproxy:$(HAPROXY_VERSION) haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration has errors$(RESET)" && exit 1); \
 	else \
 		echo "$(YELLOW)⚠️  Neither HAProxy binary nor Docker available, skipping strict HAProxy syntax check...$(RESET)"; \
 	fi
@@ -103,7 +103,7 @@ test-haproxy:
 	elif docker info >/dev/null 2>&1; then \
 		mkdir -p ./test-results; \
 		docker run --rm -v $(PWD)/haproxy:/usr/local/etc/haproxy:ro \
-			--name haproxy-test haproxy:3.0 \
+			--name haproxy-test haproxy:$(HAPROXY_VERSION) \
 			haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration test failed$(RESET)" && exit 1); \
 	else \
 		echo "$(YELLOW)⚠️  Neither HAProxy binary nor Docker available, skipping HAProxy test...$(RESET)"; \
@@ -135,11 +135,15 @@ validate-all: lint test-haproxy test-lua
 # CI setup - prepare environment for CI
 ci-setup:
 	@echo "$(CYAN)🔧 Setting up CI environment...$(RESET)"
+	@echo "$(CYAN)Verifying required versions...$(RESET)"
+	@if [ -f ./scripts/check_versions.sh ]; then \
+		./scripts/check_versions.sh || (echo "$(RED)❌ Environment does not meet version requirements$(RESET)" && exit 1); \
+	fi
 	@mkdir -p ./cmd/ratelimit-test/build ./cmd/ratelimit-test/results ./test-results
 	@cd ./cmd/ratelimit-test && go mod tidy
 	@if [ -z "$(shell which golangci-lint)" ] && [ ! -z "$(shell which go)" ]; then \
 		echo "$(YELLOW)Installing golangci-lint...$(RESET)"; \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+		GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
 	fi
 	@echo "$(GREEN)✅ CI setup complete!$(RESET)"
 

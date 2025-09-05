@@ -2,6 +2,14 @@
 # HAProxy Configuration Validation Script
 # Supports both strict validation (with Docker or HAProxy) and local-only mode
 
+# Load versions from versions.mk if available
+if [ -f ./versions.mk ]; then
+  source <(grep -E '^HAPROXY_VERSION' ./versions.mk | sed 's/ := /=/g')
+fi
+
+# Default to 3.0 if not set
+HAPROXY_VERSION=${HAPROXY_VERSION:-3.0}
+
 # Function to print with/without colors
 print_styled() {
   local color="$1"
@@ -66,7 +74,7 @@ if command -v haproxy >/dev/null 2>&1; then
   fi
 elif docker info >/dev/null 2>&1; then
   # Try to get HAProxy version from Docker
-  DOCKER_HAPROXY_VERSION=$(docker run --rm haproxy:3.0 haproxy -v 2>/dev/null | head -n 1 || echo "Unknown")
+  DOCKER_HAPROXY_VERSION=$(docker run --rm haproxy:${HAPROXY_VERSION} haproxy -v 2>/dev/null | head -n 1 || echo "Unknown")
   print_styled "$BLUE" "Docker HAProxy version: $DOCKER_HAPROXY_VERSION"
 fi
 
@@ -136,7 +144,7 @@ if docker info >/dev/null 2>&1; then
 
   # Run Docker validation
   echo "Running HAProxy validation in Docker..."
-  docker run --rm -v "$TEMP_DIR/haproxy:/usr/local/etc/haproxy:ro" haproxy:3.0 \
+  docker run --rm -v "$TEMP_DIR/haproxy:/usr/local/etc/haproxy:ro" haproxy:${HAPROXY_VERSION} \
     haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg > "$TEST_OUTPUT/haproxy.log" 2>&1
 
   if [ $? -eq 0 ]; then

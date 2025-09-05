@@ -4,7 +4,11 @@ DOCKER_COMPOSE_CMD := $(shell if docker compose version > /dev/null 2>&1; then e
 # Helper to print the selected Docker Compose command
 docker-compose-info:
 	@echo "Using Docker Compose command: $(DOCKER_COMPOSE_CMD)"
+	@echo "Required Docker Compose version: $(DOCKER_COMPOSE_VERSION)"
 	@$(DOCKER_COMPOSE_CMD) version || true
+	@echo "Exporting project versions as environment variables..."
+	@export MINIO_VERSION=$(MINIO_VERSION)
+	@export HAPROXY_VERSION=$(HAPROXY_VERSION)
 
 # Wrapper targets for Docker Compose commands
 up: docker-compose-info

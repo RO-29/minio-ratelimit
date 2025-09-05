@@ -24,10 +24,11 @@ This project implements a comprehensive, production-ready rate limiting solution
 ## 📋 **Table of Contents**
 
 1. [Architecture Overview](#-architecture-overview)
-2. [HAProxy 3.0 Features Used](#-haproxy-30-features-used)
-3. [Authentication Methods](#-authentication-methods)
-4. [Rate Limiting System](#-rate-limiting-system)
-5. [Hot Reloading Mechanism](#-hot-reloading-mechanism)
+2. [Version Requirements](#-version-requirements)
+3. [HAProxy 3.0 Features Used](#-haproxy-30-features-used)
+4. [Authentication Methods](#-authentication-methods)
+5. [Rate Limiting System](#-rate-limiting-system)
+6. [Hot Reloading Mechanism](#-hot-reloading-mechanism)
 6. [Installation & Setup](#-installation--setup)
 7. [Docker Compose Compatibility](#-docker-compose-compatibility)
 8. [Configuration Management](#-configuration-management)
