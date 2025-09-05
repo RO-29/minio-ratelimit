@@ -5,9 +5,9 @@ This addition enhances the version management system by adding comprehensive ver
 ## Components Added
 
 1. **Verification Script (`scripts/verify_versions.sh`)**
-   - Checks Go versions in all go.mod files
-   - Verifies Docker image references (HAProxy, MinIO) in Dockerfiles and Docker Compose files
-   - Examines Lua version references in scripts
+   - Checks Go versions in all go.mod files (currently using Go 1.24)
+   - Verifies Docker image references (HAProxy 3.0, MinIO) in Dockerfiles and Docker Compose files
+   - Examines Lua 5.3 version references in scripts
    - Validates documentation for correct version information
    - Smart detection of environment variables and default values
 
@@ -37,7 +37,8 @@ This addition enhances the version management system by adding comprehensive ver
 
 1. To verify versions: `make verify-versions`
 2. To update and verify versions: `make update-versions`
-3. To see all versions: `make versions`
+3. To perform comprehensive version update: `make update-all-versions`
+4. To see all versions: `make versions`
 
 ## Future Enhancements
 

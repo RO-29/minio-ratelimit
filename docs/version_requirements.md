@@ -41,3 +41,15 @@ To update all versions at once:
 ```bash
 make update-versions
 ```
+
+For a complete update and verification:
+
+```bash
+make update-all-versions
+```
+
+To verify version consistency across the project:
+
+```bash
+make verify-versions
+```
