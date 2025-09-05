@@ -7,3 +7,4 @@ test-results/
 docker-results/
 coverage/
 cmd/ratelimite-test/*.json
+haproxy.pem
