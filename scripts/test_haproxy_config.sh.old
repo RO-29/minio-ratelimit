@@ -128,46 +128,46 @@ validate_haproxy_syntax() {
     if $USE_DOCKER; then
         TEMP_CONFIG_DIR=$(mktemp -d)
         echo "Creating temporary configuration for Docker validation..."
-
+        
         # Copy HAProxy config
         mkdir -p "$TEMP_CONFIG_DIR/haproxy"
         cp -r ./haproxy/* "$TEMP_CONFIG_DIR/haproxy/"
-
+        
         # Create self-signed certificate for testing if it doesn't exist
         if [ ! -f "$TEMP_CONFIG_DIR/haproxy/certs/haproxy.pem" ]; then
             mkdir -p "$TEMP_CONFIG_DIR/haproxy/certs"
             openssl req -x509 -newkey rsa:2048 -nodes -keyout "$TEMP_CONFIG_DIR/haproxy/certs/haproxy.pem" \
             -out "$TEMP_CONFIG_DIR/haproxy/certs/haproxy.pem" -days 365 -subj "/CN=localhost" 2>/dev/null
         fi
-
+            
         # Create a new version of haproxy.cfg with Docker-compatible paths
         TEMP_CFG="$TEMP_CONFIG_DIR/haproxy/haproxy.cfg.docker"
         cp "$TEMP_CONFIG_DIR/haproxy/haproxy.cfg" "$TEMP_CFG"
-
+        
         # Fix certificate path for HAProxy in Docker
         sed -i.bak "s|/etc/ssl/certs/haproxy.pem|/usr/local/etc/haproxy/certs/haproxy.pem|g" "$TEMP_CFG" || \
         sed -i "" "s|/etc/ssl/certs/haproxy.pem|/usr/local/etc/haproxy/certs/haproxy.pem|g" "$TEMP_CFG"
-
+        
         # Fix Lua script paths for Docker
         # First copy the Lua scripts to the correct location expected by the config
         mkdir -p "$TEMP_CONFIG_DIR/haproxy/lua_temp"
         cp -r "$TEMP_CONFIG_DIR/haproxy/lua/"*.lua "$TEMP_CONFIG_DIR/haproxy/lua_temp/"
-
+        
         # Update the paths in the config to point to files where Docker will see them
         sed -i.bak "s|lua-load /usr/local/etc/haproxy/|lua-load /usr/local/etc/haproxy/lua_temp/|g" "$TEMP_CFG" || \
         sed -i "" "s|lua-load /usr/local/etc/haproxy/|lua-load /usr/local/etc/haproxy/lua_temp/|g" "$TEMP_CFG"
-
+        
         # Fix http-request lua calls
         sed -i.bak "s|http-request lua.extract_api_key|http-request set-var(txn.api_key) lua.extract_api_key|g" "$TEMP_CFG" || \
         sed -i "" "s|http-request lua.extract_api_key|http-request set-var(txn.api_key) lua.extract_api_key|g" "$TEMP_CFG"
-
+        
         # Fix map file paths for Docker
         sed -i.bak "s| ./haproxy/config/| /usr/local/etc/haproxy/config/|g" "$TEMP_CFG" || \
         sed -i "" "s| ./haproxy/config/| /usr/local/etc/haproxy/config/|g" "$TEMP_CFG"
-
+        
         # Replace original file with Docker-compatible version
         mv "$TEMP_CFG" "$TEMP_CONFIG_DIR/haproxy/haproxy.cfg"
-
+        
         echo "Running HAProxy validation in Docker..."
         # Create script to run HAProxy validation in container
         echo "#!/bin/sh
@@ -182,7 +182,7 @@ echo '\\nRunning validation:'
 haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg
 " > "$TEMP_CONFIG_DIR/validate.sh"
         chmod +x "$TEMP_CONFIG_DIR/validate.sh"
-
+        
         # Use this script for validation
         if $GITHUB_CI; then
             echo "Running in GitHub CI with extra debugging..."
@@ -192,12 +192,12 @@ haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg
             docker run --rm -v "$TEMP_CONFIG_DIR:/temp:ro" -v "$TEMP_CONFIG_DIR/haproxy:/usr/local/etc/haproxy:ro" haproxy:3.0 \
                 sh /temp/validate.sh > "$TEST_OUTPUT/haproxy_syntax.log" 2>&1
         fi
-
+            
         VALIDATION_RESULT=$?
-
+        
         # Clean up
         rm -rf "$TEMP_CONFIG_DIR"
-
+        
         if [ $VALIDATION_RESULT -ne 0 ]; then
             echo "${RED}❌ HAProxy configuration has syntax errors!${RESET}"
             cat "$TEST_OUTPUT/haproxy_syntax.log"
@@ -205,31 +205,31 @@ haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg
         fi
     elif command -v haproxy >/dev/null 2>&1; then
         echo "Using local HAProxy binary..."
-
+        
         # Create a temporary copy of the config with updated paths
         TEMP_CONFIG_FILE=$(mktemp)
         cp "$HAPROXY_CONFIG" "$TEMP_CONFIG_FILE"
-
+        
         # Update paths to be relative for local validation
         sed -i.bak "s|/usr/local/etc/haproxy/|./haproxy/|g" "$TEMP_CONFIG_FILE" || \
         sed -i "" "s|/usr/local/etc/haproxy/|./haproxy/|g" "$TEMP_CONFIG_FILE"
         sed -i.bak "s|/etc/ssl/certs/haproxy.pem|./haproxy/certs/haproxy.pem|g" "$TEMP_CONFIG_FILE" || \
         sed -i "" "s|/etc/ssl/certs/haproxy.pem|./haproxy/certs/haproxy.pem|g" "$TEMP_CONFIG_FILE"
-
+        
         # Create certificate directory if it doesn't exist
         mkdir -p ./haproxy/certs
         if [ ! -f "./haproxy/certs/haproxy.pem" ]; then
             openssl req -x509 -newkey rsa:2048 -nodes -keyout "./haproxy/certs/haproxy.pem" \
             -out "./haproxy/certs/haproxy.pem" -days 365 -subj "/CN=localhost" 2>/dev/null
         fi
-
+        
         # Run validation
         haproxy -c -f "$TEMP_CONFIG_FILE" > "$TEST_OUTPUT/haproxy_syntax.log" 2>&1
         VALIDATION_RESULT=$?
-
+        
         # Clean up
         rm "$TEMP_CONFIG_FILE"*
-
+        
         if [ $VALIDATION_RESULT -ne 0 ]; then
             echo "${RED}❌ HAProxy configuration has syntax errors!${RESET}"
             cat "$TEST_OUTPUT/haproxy_syntax.log"
@@ -321,17 +321,17 @@ check_lua_integration() {
 # Prepare HAProxy environment
 prepare_environment() {
     echo "${BLUE}Preparing HAProxy test environment...${RESET}"
-
+    
     # Create certificate directory if needed
     mkdir -p ./haproxy/certs
-
+    
     # Generate SSL certificate if it doesn't exist
     if [ ! -f "./haproxy/certs/haproxy.pem" ]; then
         echo "${YELLOW}Generating self-signed certificate for HAProxy...${RESET}"
         openssl req -x509 -newkey rsa:2048 -nodes -keyout "./haproxy/certs/haproxy.pem" \
         -out "./haproxy/certs/haproxy.pem" -days 365 -subj "/CN=localhost" 2>/dev/null
     fi
-
+    
     # Fix LF vs CRLF line endings if needed (common issue on macOS)
     if [[ "$OSTYPE" == "darwin"* ]]; then
         echo "${BLUE}Checking for line ending issues (macOS)...${RESET}"
@@ -347,7 +347,7 @@ main() {
 
     # Setup environment first
     prepare_environment
-
+    
     # Run checks
     check_required_files
     validate_haproxy_syntax

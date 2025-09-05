@@ -54,5 +54,33 @@ jobs:
           echo "Verifying test configuration files:"
           ls -la ./haproxy/config/
 
-      - name: Run validation tests
+      - name: Prepare HAProxy for testing
+        run: |
+          # Create certificate directory
+          mkdir -p ./haproxy/certs
+
+          # Generate self-signed certificate for HAProxy
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout ./haproxy/certs/haproxy.pem \
+            -out ./haproxy/certs/haproxy.pem -days 365 -subj "/CN=localhost"
+
+      - name: Run HAProxy validation explicitly
+        run: |
+          chmod +x ./scripts/haproxy_validate.sh
+
+          # Prepare certificates directory for HAProxy
+          mkdir -p ./haproxy/certs
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout ./haproxy/certs/haproxy.pem \
+            -out ./haproxy/certs/haproxy.pem -days 1 -subj "/CN=localhost"
+
+          # Run the validation
+          ./scripts/haproxy_validate.sh
+          
+      - name: Run Lua validation explicitly
+        run: |
+          chmod +x ./scripts/lua_validate.sh
+          
+          # Run the validation using local lua since it's installed in the GitHub runner
+          ./scripts/lua_validate.sh
+
+      - name: Run full validation tests
         run: make validate-all

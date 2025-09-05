@@ -28,19 +28,39 @@ lint-go:
 # Check HAProxy configuration syntax
 lint-haproxy:
 	@echo "$(CYAN)🔍 Checking HAProxy configuration syntax...$(RESET)"
-	@if command -v haproxy >/dev/null 2>&1; then \
+	@if [ -f ./scripts/haproxy_validate.sh ]; then \
+		chmod +x ./scripts/haproxy_validate.sh; \
+		if [ -n "$$CI" ] || [ -n "$$GITHUB_ACTIONS" ]; then \
+			./scripts/haproxy_validate.sh || exit 1; \
+		elif command -v haproxy >/dev/null 2>&1 || docker info >/dev/null 2>&1; then \
+			./scripts/haproxy_validate.sh || exit 1; \
+		else \
+			echo "$(YELLOW)⚠️ Using local-only mode for HAProxy validation...$(RESET)"; \
+			./scripts/haproxy_validate.sh --local-only || exit 1; \
+		fi; \
+	elif command -v haproxy >/dev/null 2>&1; then \
 		haproxy -c -f ./haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration has errors$(RESET)" && exit 1); \
 	elif docker info >/dev/null 2>&1; then \
 		docker run --rm -v $(PWD)/haproxy:/usr/local/etc/haproxy:ro haproxy:3.0 haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration has errors$(RESET)" && exit 1); \
 	else \
-		echo "$(YELLOW)⚠️  Neither HAProxy binary nor Docker available, skipping HAProxy syntax check...$(RESET)"; \
+		echo "$(YELLOW)⚠️  Neither HAProxy binary nor Docker available, skipping strict HAProxy syntax check...$(RESET)"; \
 	fi
-	@echo "$(GREEN)✅ HAProxy configuration syntax is valid!$(RESET)"
+	@echo "$(GREEN)✅ HAProxy configuration syntax validation complete!$(RESET)"
 
 # Check Lua scripts syntax
 lint-lua:
 	@echo "$(CYAN)🔍 Checking Lua scripts syntax...$(RESET)"
-	@if command -v luac >/dev/null 2>&1; then \
+	@if [ -f ./scripts/lua_validate.sh ]; then \
+		chmod +x ./scripts/lua_validate.sh; \
+		if [ -n "$$CI" ] || [ -n "$$GITHUB_ACTIONS" ]; then \
+			./scripts/lua_validate.sh || exit 1; \
+		elif command -v lua >/dev/null 2>&1 || command -v luac >/dev/null 2>&1 || docker info >/dev/null 2>&1; then \
+			./scripts/lua_validate.sh || exit 1; \
+		else \
+			echo "$(YELLOW)⚠️ Using local-only mode for Lua validation...$(RESET)"; \
+			./scripts/lua_validate.sh --local-only || exit 1; \
+		fi; \
+	elif command -v luac >/dev/null 2>&1; then \
 		for script in ./haproxy/lua/*.lua; do \
 			echo "Checking $${script}..."; \
 			luac -p $${script} || (echo "$(RED)❌ Lua syntax error in $${script}$(RESET)" && exit 1); \
@@ -51,11 +71,11 @@ lint-lua:
 			lua -e "loadfile('$${script}')" || (echo "$(RED)❌ Lua syntax error in $${script}$(RESET)" && exit 1); \
 		done; \
 	elif docker info >/dev/null 2>&1; then \
-		docker run --rm -v $(PWD)/haproxy/lua:/scripts:ro alpine/lua:latest sh -c "for script in /scripts/*.lua; do echo \"Checking $${script}...\"; luac -p $${script} || exit 1; done" || (echo "$(RED)❌ Lua syntax errors found$(RESET)" && exit 1); \
+		docker run --rm -v $(PWD)/haproxy/lua:/scripts:ro alpine:latest sh -c "for script in /scripts/*.lua; do echo \"Checking \$${script}...\"; lua -e \"loadfile('\$${script}')\" || exit 1; done" || (echo "$(RED)❌ Lua syntax errors found$(RESET)" && exit 1); \
 	else \
-		echo "$(YELLOW)⚠️  No Lua interpreter available, skipping Lua syntax check...$(RESET)"; \
+		echo "$(YELLOW)⚠️  No Lua interpreter available, skipping strict Lua syntax check...$(RESET)"; \
 	fi
-	@echo "$(GREEN)✅ Lua scripts syntax is valid!$(RESET)"
+	@echo "$(GREEN)✅ Lua scripts syntax validation complete!$(RESET)"
 
 # Test HAProxy configuration
 test-haproxy:
