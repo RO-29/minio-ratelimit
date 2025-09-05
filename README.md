@@ -29,11 +29,12 @@ This project implements a comprehensive, production-ready rate limiting solution
 4. [Rate Limiting System](#-rate-limiting-system)
 5. [Hot Reloading Mechanism](#-hot-reloading-mechanism)
 6. [Installation & Setup](#-installation--setup)
-7. [Configuration Management](#-configuration-management)
-8. [Testing & Validation](#-testing--validation)
-9. [Performance Metrics](#-performance-metrics)
-10. [Monitoring & Debugging](#-monitoring--debugging)
-11. [Production Deployment](#-production-deployment)
+7. [Docker Compose Compatibility](#-docker-compose-compatibility)
+8. [Configuration Management](#-configuration-management)
+9. [Testing & Validation](#-testing--validation)
+10. [Performance Metrics](#-performance-metrics)
+11. [Monitoring & Debugging](#-monitoring--debugging)
+12. [Production Deployment](#-production-deployment)
 
 ---
 
@@ -414,6 +415,56 @@ curl -I http://localhost/test-bucket/ \
 - **HAProxy 2**: `http://localhost:81` (port 81), `https://localhost:444` (port 444)  
 - **MinIO**: `http://localhost:9001` (port 9001)
 - **HAProxy Stats**: `http://localhost:8404/stats`
+
+---
+
+## 🐳 **Docker Compose Compatibility**
+
+The project is fully compatible with both Docker Compose V1 and V2, ensuring flexibility across different environments.
+
+### **Docker Compose Version Support**
+
+- **Docker Compose V1** (`docker-compose` command)
+- **Docker Compose V2** (`docker compose` command)
+
+### **Environment Compatibility**
+
+```bash
+# Using Docker Compose V1
+docker-compose up -d
+
+# Using Docker Compose V2
+docker compose up -d
+```
+
+### **Docker Compose File Structure**
+
+The `docker-compose.yml` file includes:
+
+- **MinIO Instance**: Object storage service with preconfigured access keys
+- **HAProxy Instances (x2)**: Active-active setup for high availability
+  - Instance 1: Ports 80 (HTTP), 443 (HTTPS), 8404 (Stats)
+  - Instance 2: Ports 81 (HTTP), 444 (HTTPS), 8405 (Stats)
+
+### **Volume Configuration**
+
+- **Persistent Storage**: MinIO data persists across container restarts
+- **Configuration Mounting**: All HAProxy configurations are mounted as read-only
+  - Lua scripts for authentication and rate limiting
+  - SSL certificates
+  - Configuration files
+
+### **Health Checks**
+
+Both MinIO and HAProxy services include properly configured health checks:
+
+- MinIO: Checks `/minio/health/live` endpoint every 30 seconds
+- HAProxy: Verifies stats page availability every 30 seconds
+
+### **Resource Requirements**
+
+- Minimum: 4GB RAM, 2 CPU cores
+- Recommended: 8GB RAM, 4 CPU cores for production workloads
 
 ---
 
