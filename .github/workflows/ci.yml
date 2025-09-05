@@ -197,6 +197,30 @@ jobs:
           else
             echo "All HAProxy Docker references use the correct version"
           fi
+          
+      - name: Check Docker Compose version references
+        run: |
+          DOCKER_COMPOSE_VERSION=$(grep -E '^DOCKER_COMPOSE_VERSION :=' versions.mk | sed 's/DOCKER_COMPOSE_VERSION := //')
+          echo "Looking for Docker Compose version references..."
+          
+          # Check documentation files for Docker Compose version references
+          DOC_REFERENCES=$(grep -r "Docker Compose" --include="*.md" --include="*.txt" . | grep -v "versions.mk" || true)
+          if [[ -n "$DOC_REFERENCES" ]]; then
+            echo "Found Docker Compose references in documentation:"
+            echo "$DOC_REFERENCES"
+            
+            # Check if the documentation references the correct version
+            INCORRECT_DOC_REFS=$(grep -r "Docker Compose .* [0-9]" --include="*.md" --include="*.txt" . | grep -v "$DOCKER_COMPOSE_VERSION" || true)
+            if [[ -n "$INCORRECT_DOC_REFS" ]]; then
+              echo "::warning::Found Docker Compose references with incorrect version:"
+              echo "$INCORRECT_DOC_REFS"
+              echo "Run 'make update-all-versions' to synchronize versions"
+            else
+              echo "All Docker Compose references in documentation are correct or use variables"
+            fi
+          else
+            echo "No explicit Docker Compose version references found in documentation"
+          fi
 
   build-docker:
     name: Build and Test Docker Image
