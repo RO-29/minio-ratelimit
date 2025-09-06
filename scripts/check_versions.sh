@@ -2,6 +2,10 @@
 # CI Environment Version Validator
 # This script checks if all required tools are available with the correct versions
 
+# Initialize variables
+warnings=0
+exit_code=0
+
 # Load versions from versions.mk
 if [ -f ./versions.mk ]; then
   source <(grep -E '^GO_VERSION|^LUA_VERSION|^HAPROXY_VERSION|^DOCKER_COMPOSE_VERSION|^DOCKER_MINIMUM_VERSION' ./versions.mk | sed 's/ := /=/g')
@@ -93,9 +97,11 @@ if command -v lua >/dev/null 2>&1; then
     print_status "OK" "Lua version is sufficient"
   else
     print_status "WARNING" "Lua version $current_lua_version is below required $LUA_VERSION (will use Docker fallback)"
+    warnings=$((warnings + 1))
   fi
 else
   print_status "WARNING" "Lua is not installed (will use Docker fallback)"
+  warnings=$((warnings + 1))
 fi
 
 # Check HAProxy version
@@ -113,9 +119,11 @@ if command -v haproxy >/dev/null 2>&1; then
     print_status "OK" "HAProxy version is sufficient"
   else
     print_status "WARNING" "HAProxy version $current_haproxy_version is below required $HAPROXY_VERSION (will use Docker fallback)"
+    warnings=$((warnings + 1))
   fi
 else
   print_status "WARNING" "HAProxy is not installed (will use Docker fallback)"
+  warnings=$((warnings + 1))
 fi
 
 # Check Docker version
@@ -147,6 +155,7 @@ elif command -v docker-compose >/dev/null 2>&1; then
   compose_type="v1"
   echo "Installed: $current_compose_version (v1)"
   print_status "WARNING" "Using Docker Compose v1 (standalone binary) - v2 is recommended"
+  warnings=$((warnings + 1))
 else
   print_status "ERROR" "Docker Compose is not installed"
   exit_code=1

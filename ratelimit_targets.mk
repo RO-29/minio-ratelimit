@@ -1,8 +1,8 @@
 # Rate limiting test targets
 
 # Define paths used for validation
-HAPROXY_CONFIG ?= $(PROJECT_ROOT)/haproxy/haproxy.cfg
-LUA_DIR ?= $(PROJECT_ROOT)/haproxy/lua
+HAPROXY_CONFIG ?= $(PROJECT_DIR)/haproxy/haproxy.cfg
+LUA_DIR ?= $(PROJECT_DIR)/haproxy/lua
 
 # Check for required files for rate limiting
 define check_rate_limiting_files
@@ -35,15 +35,15 @@ endef
 # Build the rate limit test tool
 ratelimit-test-build:
 	@$(call print_styled,$(BLUE),"Building rate limit testing tool...")
-	@mkdir -p $(PROJECT_ROOT)/cmd/ratelimit-test/build
-	@cd $(PROJECT_ROOT)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test .
+	@mkdir -p $(PROJECT_DIR)/cmd/ratelimit-test/build
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test .
 	@$(call print_styled,$(GREEN),"✅ Rate limit testing tool built successfully")
 
 # Generate test tokens for rate limiting
 ratelimit-tokens:
 	@$(call print_styled,$(BLUE),"Generating test tokens for rate limiting...")
-	@mkdir -p $(PROJECT_ROOT)/haproxy/config
-	@$(PROJECT_ROOT)/scripts/generate-minio-service-accounts.sh
+	@mkdir -p $(PROJECT_DIR)/haproxy/config
+	@$(PROJECT_DIR)/scripts/generate-minio-service-accounts.sh
 	@$(call print_styled,$(GREEN),"✅ Test tokens generated successfully")
 
 # Validate complete rate limiting setup
@@ -54,12 +54,12 @@ validate-ratelimit: lint-haproxy lint-lua ratelimit-test-build ratelimit-tokens
 	@$(call print_styled,$(GREEN),"✅ Rate limiting setup validated successfully!")
 	@$(call print_styled,$(BLUE),"Next steps:")
 	@$(call print_styled,$(BLUE),"1. Start the stack: '$(DOCKER_COMPOSE_CMD) up' or 'make up'")
-	@$(call print_styled,$(BLUE),"2. Test the rate limiting: '$(PROJECT_ROOT)/cmd/ratelimit-test/build/minio-ratelimit-test'")
+	@$(call print_styled,$(BLUE),"2. Test the rate limiting: './cmd/ratelimit-test/build/minio-ratelimit-test'")
 
 # Run the rate limiting tests (after starting the stack)
 ratelimit-test: ratelimit-test-build
 	@$(call print_styled,$(BLUE),"Running rate limiting tests...")
-	@$(PROJECT_ROOT)/cmd/ratelimit-test/build/minio-ratelimit-test
+	@$(PROJECT_DIR)/cmd/ratelimit-test/build/minio-ratelimit-test
 
 # Run all targets for comprehensive testing
 test-all: lint validate-all validate-ratelimit ratelimit-test-build
