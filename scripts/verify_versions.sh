@@ -8,7 +8,12 @@ set -e
 
 # Source the versions file
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the project root directory (parent of script directory)
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Set current directory as fallback if PROJECT_ROOT is empty or invalid
+if [ ! -d "$PROJECT_ROOT" ] || [ "$PROJECT_ROOT" = "/" ]; then
+    PROJECT_ROOT="$(pwd)"
+fi
 source "$SCRIPT_DIR/export_versions.sh"
 
 echo "🔍 Verifying versions across the project..."
@@ -127,8 +132,7 @@ echo -e "\nChecking Lua version references..."
 while IFS= read -r file; do
   if grep -q "lua-" "$file" || grep -q "lua[0-9]" "$file"; then
     # Skip files that don't explicitly need a Lua version
-    if [[ "$file" == *"test_haproxy_config.sh"* ||
-          "$file" == *"test_haproxy.sh"* ||
+    if [[ "$file" == *"test_haproxy.sh"* ||
           "$file" == *"haproxy_validate.sh"* ||
           "$file" == *"validate_rate_limiting.sh"* ]]; then
       echo -e "${YELLOW}⚠️  Skipping Lua version check for utility script: $file${NC}"

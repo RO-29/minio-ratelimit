@@ -2,7 +2,10 @@
 
 # SSL Certificate Generation Script for HAProxy MinIO Rate Limiting
 
-CERT_DIR="/Users/rohit/minio-ratelimit/haproxy/ssl/certs"
+# Get the directory where the script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Set the certificate directory relative to the project root (one level up from scripts folder)
+CERT_DIR="$SCRIPT_DIR/../haproxy/ssl/certs"
 DOMAIN="localhost"
 COUNTRY="US"
 STATE="CA"
@@ -15,6 +18,13 @@ echo "============================================================"
 
 # Create certificate directory
 mkdir -p "$CERT_DIR"
+
+# Ensure the directory structure exists for Docker volume mounting
+HAPROXY_SSL_DIR="$SCRIPT_DIR/../haproxy/ssl"
+if [ ! -d "$HAPROXY_SSL_DIR" ]; then
+    mkdir -p "$HAPROXY_SSL_DIR"
+    echo "Created directory structure for HAProxy SSL certs at $HAPROXY_SSL_DIR"
+fi
 
 # Generate private key
 echo "1. Generating private key..."
@@ -38,8 +48,14 @@ subjectAltName = @alt_names
 [alt_names]
 DNS.1 = localhost
 DNS.2 = *.localhost
+DNS.3 = haproxy
+DNS.4 = haproxy1
+DNS.5 = haproxy2
+DNS.6 = minio
 IP.1 = 127.0.0.1
 IP.2 = ::1
+IP.3 = 192.168.65.1
+IP.4 = 192.168.65.2
 EOF
 )
 
@@ -64,3 +80,17 @@ echo "Certificate Details:"
 openssl x509 -in "$CERT_DIR/haproxy.crt" -text -noout | grep -E "(Subject:|Not Before|Not After|DNS:|IP Address:)"
 echo ""
 echo "🔐 HAProxy will use: $CERT_DIR/haproxy.pem"
+
+# Add certificate to macOS trust store
+echo ""
+echo "Adding certificate to macOS trust store..."
+# Create a temporary keychain entry for the certificate
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$CERT_DIR/haproxy.crt"
+if [ $? -eq 0 ]; then
+    echo "✅ Certificate successfully added to macOS trust store"
+    echo "⚠️  Note: You may need to restart your browser or applications to apply the changes"
+else
+    echo "❌ Failed to add certificate to macOS trust store"
+    echo "   You may need to run this script with sudo or manually add the certificate"
+    echo "   To manually add: open Keychain Access, import $CERT_DIR/haproxy.crt and set to 'Always Trust'"
+fi

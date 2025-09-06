@@ -27,7 +27,30 @@ HAPROXY_VERSION := 3.0
 DOCKER_COMPOSE_VERSION := 2.26.0
 DOCKER_MINIMUM_VERSION := 20.10.0
 MINIO_VERSION := RELEASE.2025-04-22T22-12-26Z
+
+# Project directory settings
+PROJECT_DIR := $(shell pwd)
+# Defining PROJECT_ROOT for backward compatibility with existing scripts
+PROJECT_ROOT := $(PROJECT_DIR)
 ```
+
+## Path Management
+
+The `versions.mk` file also defines important path variables used throughout the project:
+
+```makefile
+# Project directory settings
+PROJECT_DIR := $(shell pwd)
+# Defining PROJECT_ROOT for backward compatibility with existing scripts
+PROJECT_ROOT := $(PROJECT_DIR)
+```
+
+These variables ensure consistent path resolution regardless of the directory from which commands are executed:
+
+- `PROJECT_DIR`: Represents the current directory using `$(shell pwd)`
+- `PROJECT_ROOT`: An alias for `PROJECT_DIR` maintained for backward compatibility with existing scripts
+
+All scripts and Makefile targets use these variables to reference files and directories, ensuring paths are resolved correctly relative to the project root.
 
 ## Updating Versions
 

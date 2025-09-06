@@ -37,8 +37,11 @@
 #   make clean            - Clean up Docker resources
 #   make versions         - Show current versions used in the project
 
-# Include centralized version control
+# Include centralized version control and other make files
 include versions.mk
+# include docker_compose_targets.mk
+# include linting_targets.mk
+# include ratelimit_targets.mk
 
 .PHONY: up down restart reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup cleanup versions update-go-version update-haproxy-version update-versions check-versions verify-versions update-all-versions
 
@@ -139,18 +142,18 @@ test-limits:
 # Backup all configuration files
 backup-configs:
 	@echo "Backing up configuration files..."
-	@mkdir -p ./backups/$(shell date +%Y%m%d_%H%M%S)
-	@cp ./haproxy/haproxy.cfg ./backups/$(shell date +%Y%m%d_%H%M%S)/
-	@cp ./haproxy/lua/extract_api_keys.lua ./backups/$(shell date +%Y%m%d_%H%M%S)/
-	@cp ./haproxy/lua/dynamic_rate_limiter.lua ./backups/$(shell date +%Y%m%d_%H%M%S)/
-	@cp -r ./haproxy/config ./backups/$(shell date +%Y%m%d_%H%M%S)/
-	@echo "Backup created in ./backups/$(shell date +%Y%m%d_%H%M%S)/"
+	@mkdir -p $(BACKUPS_DIR)/$(shell date +%Y%m%d_%H%M%S)
+	@cp $(PROJECT_DIR)/haproxy/haproxy.cfg $(BACKUPS_DIR)/$(shell date +%Y%m%d_%H%M%S)/
+	@cp $(PROJECT_DIR)/haproxy/lua/extract_api_keys.lua $(BACKUPS_DIR)/$(shell date +%Y%m%d_%H%M%S)/
+	@cp $(PROJECT_DIR)/haproxy/lua/dynamic_rate_limiter.lua $(BACKUPS_DIR)/$(shell date +%Y%m%d_%H%M%S)/
+	@cp -r $(PROJECT_DIR)/haproxy/config $(BACKUPS_DIR)/$(shell date +%Y%m%d_%H%M%S)/
+	@echo "Backup created in $(BACKUPS_DIR)/$(shell date +%Y%m%d_%H%M%S)/"
 
 # Increase premium rate limits
 increase-limits:
 	@echo "Increasing premium rate limits..."
-	@sed -i '' 's/premium [0-9]*/premium 10000/' ./haproxy/config/rate_limits_per_minute.map
-	@sed -i '' 's/premium [0-9]*/premium 200/' ./haproxy/config/rate_limits_per_second.map
+	@sed -i '' 's/premium [0-9]*/premium 10000/' $(HAPROXY_CONFIG_DIR)/rate_limits_per_minute.map
+	@sed -i '' 's/premium [0-9]*/premium 200/' $(HAPROXY_CONFIG_DIR)/rate_limits_per_second.map
 	@echo "Rate limits increased. Remember to reload HAProxy with 'make reload'"
 
 # Update HAProxy map files
@@ -167,9 +170,14 @@ update-maps: docker-compose-info
 # Advanced Rate Limit Testing Scenarios
 #
 
-# Define variables for test commands
-TEST_CMD = cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json
-TEST_RESULTS_DIR = ./test-results
+# Define variables for test commands and paths
+# Using PROJECT_DIR from versions.mk
+CONFIG_DEFAULT := $(PROJECT_DIR)/haproxy/config/generated_service_accounts.json
+TEST_CMD = cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test
+TEST_RESULTS_DIR = $(PROJECT_DIR)/test-results
+HAPROXY_CONFIG_DIR = $(PROJECT_DIR)/haproxy/config
+LUA_SCRIPTS_DIR = $(PROJECT_DIR)/haproxy/lua
+BACKUPS_DIR = $(PROJECT_DIR)/backups
 
 # Include linting, validation, rate limiting, and Docker Compose targets
 include linting_targets.mk
@@ -183,32 +191,40 @@ ensure-results-dir:
 # Test only basic tier accounts
 test-basic: ensure-results-dir
 	@echo "🧪 Running tests for BASIC tier accounts only..."
-	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -tiers=basic -duration=60s -accounts=5 > ../../test-results/basic_results.json
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	$(eval CONFIG_FILE := $(if $(config),$(config),$(CONFIG_DEFAULT)))
+	@echo "Using config file: $(CONFIG_FILE)"
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test -config=$(CONFIG_FILE) -tiers=basic -duration=60s -accounts=5 > $(PROJECT_DIR)/test-results/basic_results.json
 	@echo "✅ Basic tier testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/basic_results.json"
 
 # Test only standard tier accounts
 test-standard: ensure-results-dir
 	@echo "🧪 Running tests for STANDARD tier accounts only..."
-	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -tiers=standard -duration=60s -accounts=5 > ../../test-results/standard_results.json
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	$(eval CONFIG_FILE := $(if $(config),$(config),$(CONFIG_DEFAULT)))
+	@echo "Using config file: $(CONFIG_FILE)"
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test -config=$(CONFIG_FILE) -tiers=standard -duration=60s -accounts=5 > $(PROJECT_DIR)/test-results/standard_results.json
 	@echo "✅ Standard tier testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/standard_results.json"
 
 # Test only premium tier accounts
 test-premium: ensure-results-dir
 	@echo "🧪 Running tests for PREMIUM tier accounts only..."
-	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -tiers=premium -duration=60s -accounts=5 > ../../test-results/premium_results.json
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	$(eval CONFIG_FILE := $(if $(config),$(config),$(CONFIG_DEFAULT)))
+	@echo "Using config file: $(CONFIG_FILE)"
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test -config=$(CONFIG_FILE) -tiers=premium -duration=60s -accounts=5 > $(PROJECT_DIR)/test-results/premium_results.json
 	@echo "✅ Premium tier testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/premium_results.json"
 
 # Run a premium stress test
 test-stress: ensure-results-dir
 	@echo "💪 Running PREMIUM STRESS test to find actual limits..."
-	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -stress-premium -duration=120s -accounts=5 > ../../test-results/stress_results.json
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	$(eval CONFIG_FILE := $(if $(config),$(config),$(CONFIG_DEFAULT)))
+	@echo "Using config file: $(CONFIG_FILE)"
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test -config=$(CONFIG_FILE) -stress-premium -duration=120s -accounts=5 > $(PROJECT_DIR)/test-results/stress_results.json
 	@echo "✅ Premium stress testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/stress_results.json"
 
@@ -216,47 +232,57 @@ test-stress: ensure-results-dir
 test-quick: ensure-results-dir
 	@echo "🚀 Running QUICK test (15s duration)..."
 	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -duration=15s -accounts=2 > ../../test-results/quick_results.json
+	$(eval CONFIG_FILE := $(if $(config),$(config),../../haproxy/config/generated_service_accounts.json))
+	@echo "Using config file: $(CONFIG_FILE)"
+	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=$(CONFIG_FILE) -duration=15s -accounts=2 > ../../test-results/quick_results.json
 	@echo "✅ Quick testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/quick_results.json"
 
 # Run an extended test (5m duration)
 test-extended: ensure-results-dir
 	@echo "⏰ Running EXTENDED test (5m duration)..."
-	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -duration=5m -accounts=3 > ../../test-results/extended_results.json
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	$(eval CONFIG_FILE := $(if $(config),$(config),$(CONFIG_DEFAULT)))
+	@echo "Using config file: $(CONFIG_FILE)"
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test -config=$(CONFIG_FILE) -duration=5m -accounts=3 > $(PROJECT_DIR)/test-results/extended_results.json
 	@echo "✅ Extended testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/extended_results.json"
 
 # Run test and export detailed JSON results
 test-export: ensure-results-dir
 	@echo "📊 Running test with DETAILED JSON export..."
-	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -duration=60s -accounts=3 -json -output=../../test-results/detailed_export.json > ../../test-results/test_output.log
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	$(eval CONFIG_FILE := $(if $(config),$(config),$(CONFIG_DEFAULT)))
+	@echo "Using config file: $(CONFIG_FILE)"
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test -config=$(CONFIG_FILE) -duration=60s -accounts=3 -json -output=$(PROJECT_DIR)/test-results/detailed_export.json > $(PROJECT_DIR)/test-results/test_output.log
 	@echo "✅ Testing with JSON export complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/detailed_export.json"
 
 # Run tests across all tiers with comprehensive analysis
 test-all-tiers: ensure-results-dir
 	@echo "🔬 Running COMPREHENSIVE tests across ALL TIERS..."
-	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@cd ./cmd/ratelimit-test && ./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -duration=90s -accounts=3 -tiers=basic,standard,premium -json -output=../../test-results/all_tiers_results.json > ../../test-results/all_tiers_output.log
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	$(eval CONFIG_FILE := $(if $(config),$(config),$(CONFIG_DEFAULT)))
+	@echo "Using config file: $(CONFIG_FILE)"
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test -config=$(CONFIG_FILE) -duration=90s -accounts=3 -tiers=basic,standard,premium -json -output=$(PROJECT_DIR)/test-results/all_tiers_results.json > $(PROJECT_DIR)/test-results/all_tiers_output.log
 	@echo "✅ All-tier comprehensive testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/all_tiers_results.json"
 
 # Test with custom configuration
 test-custom: ensure-results-dir
 	@echo "🔧 Running CUSTOM configuration test..."
+	$(eval CONFIG_FILE := $(if $(config),$(config),$(CONFIG_DEFAULT)))
+	@echo "Using config file: $(CONFIG_FILE)"
 	@read -p "Duration (e.g. 30s, 1m, 5m): " duration; \
 	read -p "Accounts per tier (e.g. 1-10): " accounts; \
 	read -p "Tiers to test (basic,standard,premium): " tiers; \
 	read -p "Export JSON? (y/n): " export_json; \
 	export_option=""; \
 	if [ "$$export_json" = "y" ]; then \
-		export_option="-json -output=../../test-results/custom_results.json"; \
+		export_option="-json -output=$(PROJECT_DIR)/test-results/custom_results.json"; \
 	fi; \
-	cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go; \
-	./build/minio-ratelimit-test -config=../../haproxy/config/generated_service_accounts.json -duration=$$duration -accounts=$$accounts -tiers=$$tiers $$export_option > ../../test-results/custom_output.log
+	cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go; \
+	./build/minio-ratelimit-test -config=$(CONFIG_FILE) -duration=$$duration -accounts=$$accounts -tiers=$$tiers $$export_option > $(PROJECT_DIR)/test-results/custom_output.log
 	@echo "✅ Custom testing complete!"
 	@echo "📊 Results saved to $(TEST_RESULTS_DIR)/custom_output.log"
 
@@ -266,13 +292,13 @@ compare-results:
 	@read -p "First results file: " file1; \
 	read -p "Second results file: " file2; \
 	echo "Comparing $${file1} with $${file2}..."; \
-	cd ./cmd/ratelimit-test && go run ./scripts/compare_results.go -file1=../../test-results/$$file1 -file2=../../test-results/$$file2
+	cd $(PROJECT_DIR)/cmd/ratelimit-test && go run ./scripts/compare_results.go -file1=$(PROJECT_DIR)/test-results/$$file1 -file2=$(PROJECT_DIR)/test-results/$$file2
 	@echo "✅ Comparison complete!"
 
 # Clean up and organize project files
 cleanup:
 	@echo "🧹 Cleaning up project files..."
-	@./scripts/cleanup.sh
+	@$(PROJECT_DIR)/scripts/cleanup.sh
 	@echo "✅ Project cleanup complete!"
 
 # Display version information
@@ -295,13 +321,13 @@ versions:
 # Update Go version in all go.mod files
 update-go-version:
 	@echo "🔄 Updating Go version to $(GO_VERSION) (toolchain $(GO_TOOLCHAIN_VERSION))..."
-	@./scripts/update_go_version.sh
+	@$(PROJECT_DIR)/scripts/update_go_version.sh
 	@echo "✅ Go version updated in all go.mod files"
 
 # Update HAProxy version in all project files
 update-haproxy-version:
 	@echo "🔄 Updating HAProxy version to $(HAPROXY_VERSION) in all files..."
-	@./scripts/update_haproxy_version.sh
+	@$(PROJECT_DIR)/scripts/update_haproxy_version.sh
 	@echo "✅ HAProxy version updated in all files"
 
 # Update all versions in project files
@@ -312,13 +338,13 @@ update-versions: update-go-version update-haproxy-version verify-versions
 # Update all versions and run verification
 update-all-versions:
 	@echo "🔄 Running comprehensive version update..."
-	@./scripts/update_all_versions.sh
+	@$(PROJECT_DIR)/scripts/update_all_versions.sh
 
 # Verify version consistency across the project
 verify-versions:
 	@echo "🔍 Verifying version consistency across the project..."
-	@./scripts/verify_versions.sh
+	@$(PROJECT_DIR)/scripts/verify_versions.sh
 
 # Check if environment meets version requirements
 check-versions:
-	@./scripts/check_versions.sh
+	@$(PROJECT_DIR)/scripts/check_versions.sh

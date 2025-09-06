@@ -4,7 +4,9 @@
 # Manages all aspects of rate limiting without hardcoded values
 # Usage: ./manage-dynamic-limits [command] [options]
 
-CONFIG_DIR="../haproxy/config"
+# Set config directory relative to the script's location
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_DIR="$SCRIPT_DIR/../haproxy/config"
 API_GROUPS_MAP="$CONFIG_DIR/api_key_groups.map"
 MINUTE_LIMITS_MAP="$CONFIG_DIR/rate_limits_per_minute.map"
 SECOND_LIMITS_MAP="$CONFIG_DIR/rate_limits_per_second.map"
@@ -26,27 +28,30 @@ show_help() {
     echo "Usage: $0 [command] [options]"
     echo ""
     echo "API Key Management:"
-    echo "  add-key <key> <group>           Add API key to group"
-    echo "  remove-key <key>                Remove API key"
-    echo "  update-key <key> <new_group>    Update API key group"
-    echo "  list-keys                       List all API keys"
+    echo "  add-key <key> <group> [--hot-reload]     Add API key to group"
+    echo "  remove-key <key> [--hot-reload]          Remove API key"
+    echo "  update-key <key> <new_group> [--hot-reload]  Update API key group"
+    echo "  list-keys                                List all API keys"
     echo ""
     echo "Rate Limit Management:"
-    echo "  set-minute-limit <group> <limit>    Set per-minute limit for group"
-    echo "  set-second-limit <group> <limit>    Set per-second limit for group"
-    echo "  get-limits <group>                  Get current limits for group"
-    echo "  list-all-limits                     List all rate limits"
+    echo "  set-minute-limit <group> <limit> [--hot-reload]  Set per-minute limit for group"
+    echo "  set-second-limit <group> <limit> [--hot-reload]  Set per-second limit for group"
+    echo "  get-limits <group>                            Get current limits for group"
+    echo "  list-all-limits                               List all rate limits"
     echo ""
     echo "Error Message Management:"
-    echo "  set-error-msg <group> <message>     Set custom error message"
-    echo "  get-error-msg <group>               Get error message for group"
+    echo "  set-error-msg <group> <message> [--hot-reload]   Set custom error message"
+    echo "  get-error-msg <group>                            Get error message for group"
     echo ""
     echo "System Management:"
-    echo "  reload                          Hot reload HAProxy configuration"
+    echo "  reload [--hot-reload]           Reload HAProxy configuration"
     echo "  validate                        Validate all map files"
     echo "  backup                          Create backup of all configs"
     echo "  restore <backup_date>           Restore from backup"
     echo "  show-stats                      Show current system status"
+    echo ""
+    echo "Options:"
+    echo "  --hot-reload                    Use HAProxy runtime API to reload maps without process restart"
     echo ""
 }
 
@@ -94,8 +99,101 @@ validate_map_files() {
     return $errors
 }
 
+hot_reload_maps() {
+    echo -e "${YELLOW}Hot reloading HAProxy maps via runtime API...${NC}"
+
+    local socket_paths=(
+        "/tmp/haproxy.sock"
+        "/var/run/haproxy.sock"
+        "/run/haproxy.sock"
+    )
+
+    local maps=(
+        "/usr/local/etc/haproxy/config/api_key_groups.map"
+        "/usr/local/etc/haproxy/config/rate_limits_per_minute.map"
+        "/usr/local/etc/haproxy/config/rate_limits_per_second.map"
+        "/usr/local/etc/haproxy/config/error_messages.map"
+    )
+
+    local success_count=0
+    local total_count=0
+
+    # Try Docker containers first
+    if docker ps --format "table {{.Names}}" | grep -q "haproxy"; then
+        echo "Hot reloading maps in HAProxy containers..."
+        for container in $(docker ps --format "{{.Names}}" | grep haproxy); do
+            echo "  → $container"
+            for map_file in "${maps[@]}"; do
+                total_count=$((total_count + 1))
+                # Clear and reload each map using proper HAProxy runtime API
+                if docker exec "$container" sh -c "echo 'clear map $map_file' | socat stdio /tmp/haproxy.sock" 2>/dev/null && \
+                   docker exec "$container" sh -c "cat $map_file | grep -v '^#' | while read key value; do [ -n \"\$key\" ] && [ -n \"\$value\" ] && echo \"add map $map_file \$key \$value\" | socat stdio /tmp/haproxy.sock; done" 2>/dev/null; then
+                    echo "    ✅ Reloaded $(basename "$map_file")"
+                    success_count=$((success_count + 1))
+                else
+                    echo "    ⚠️  Failed to reload $(basename "$map_file")"
+                fi
+            done
+        done
+
+        if [ $success_count -gt 0 ]; then
+            echo "Successfully reloaded $success_count/$total_count maps"
+            return 0
+        else
+            return 1
+        fi
+    fi
+
+    # Try local HAProxy socket
+    for socket_path in "${socket_paths[@]}"; do
+        if [ -S "$socket_path" ]; then
+            echo "Using HAProxy socket: $socket_path"
+            for map_file in "${maps[@]}"; do
+                total_count=$((total_count + 1))
+                # Clear and reload each map
+                if echo "clear map $map_file" | socat stdio "$socket_path" 2>/dev/null && \
+                   cat "$map_file" | grep -v '^#' | while read key value; do [ -n "$key" ] && [ -n "$value" ] && echo "add map $map_file $key $value" | socat stdio "$socket_path"; done 2>/dev/null; then
+                    echo "  ✅ Reloaded $(basename "$map_file")"
+                    success_count=$((success_count + 1))
+                else
+                    echo "  ⚠️  Failed to reload $(basename "$map_file")"
+                fi
+            done
+
+            if [ $success_count -gt 0 ]; then
+                echo "Successfully reloaded $success_count/$total_count maps"
+                return 0
+            else
+                return 1
+            fi
+        fi
+    done
+
+    echo -e "${RED}❌ No HAProxy socket found. Falling back to full reload.${NC}"
+    return 1
+}
+
 reload_haproxy() {
-    echo -e "${YELLOW}Hot reloading HAProxy configuration...${NC}"
+    local use_hot_reload=false
+
+    # Check if --hot-reload flag is present in arguments
+    for arg in "$@"; do
+        if [ "$arg" = "--hot-reload" ]; then
+            use_hot_reload=true
+            break
+        fi
+    done
+
+    if [ "$use_hot_reload" = true ]; then
+        if hot_reload_maps; then
+            echo -e "${GREEN}✅ HAProxy maps hot reloaded successfully${NC}"
+            return 0
+        fi
+        # If hot reload fails, fall through to full reload
+        echo -e "${YELLOW}Falling back to full HAProxy reload...${NC}"
+    fi
+
+    echo -e "${YELLOW}Reloading HAProxy configuration...${NC}"
 
     # Try Docker containers first
     if docker ps --format "table {{.Names}}" | grep -q "haproxy"; then
@@ -126,9 +224,10 @@ reload_haproxy() {
 set_minute_limit() {
     local group="$1"
     local limit="$2"
+    shift 2  # Remove first two arguments to get remaining flags
 
     if [ -z "$group" ] || [ -z "$limit" ]; then
-        echo -e "${RED}❌ Usage: set-minute-limit <group> <limit>${NC}"
+        echo -e "${RED}❌ Usage: set-minute-limit <group> <limit> [--hot-reload]${NC}"
         return 1
     fi
 
@@ -148,15 +247,16 @@ set_minute_limit() {
         echo -e "${GREEN}✅ Added minute limit for $group: $limit${NC}"
     fi
 
-    reload_haproxy
+    reload_haproxy "$@"  # Pass remaining arguments (including --hot-reload)
 }
 
 set_second_limit() {
     local group="$1"
     local limit="$2"
+    shift 2  # Remove first two arguments to get remaining flags
 
     if [ -z "$group" ] || [ -z "$limit" ]; then
-        echo -e "${RED}❌ Usage: set-second-limit <group> <limit>${NC}"
+        echo -e "${RED}❌ Usage: set-second-limit <group> <limit> [--hot-reload]${NC}"
         return 1
     fi
 
@@ -176,7 +276,7 @@ set_second_limit() {
         echo -e "${GREEN}✅ Added second limit for $group: $limit${NC}"
     fi
 
-    reload_haproxy
+    reload_haproxy "$@"  # Pass remaining arguments (including --hot-reload)
 }
 
 get_limits() {
@@ -220,9 +320,10 @@ list_all_limits() {
 add_api_key() {
     local key="$1"
     local group="$2"
+    shift 2  # Remove first two arguments to get remaining flags
 
     if [ -z "$key" ] || [ -z "$group" ]; then
-        echo -e "${RED}❌ Usage: add-key <key> <group>${NC}"
+        echo -e "${RED}❌ Usage: add-key <key> <group> [--hot-reload]${NC}"
         return 1
     fi
 
@@ -231,20 +332,24 @@ add_api_key() {
     # Check if key already exists
     if grep -q "^$key " "$API_GROUPS_MAP" 2>/dev/null; then
         echo -e "${YELLOW}⚠️ Key already exists, updating group...${NC}"
+        cat $API_GROUPS_MAP
+        ls -lrth $API_GROUPS_MAP
+        exit 1
         sed -i.bak "s/^$key .*/$key $group/" "$API_GROUPS_MAP"
     else
         echo "$key $group" >> "$API_GROUPS_MAP"
     fi
 
     echo -e "${GREEN}✅ API key $key assigned to group: $group${NC}"
-    reload_haproxy
+    reload_haproxy "$@"  # Pass remaining arguments (including --hot-reload)
 }
 
 remove_api_key() {
     local key="$1"
+    shift 1  # Remove first argument to get remaining flags
 
     if [ -z "$key" ]; then
-        echo -e "${RED}❌ Usage: remove-key <key>${NC}"
+        echo -e "${RED}❌ Usage: remove-key <key> [--hot-reload]${NC}"
         return 1
     fi
 
@@ -259,15 +364,16 @@ remove_api_key() {
     grep -v "^$key " "$API_GROUPS_MAP" > "$API_GROUPS_MAP.tmp" && mv "$API_GROUPS_MAP.tmp" "$API_GROUPS_MAP"
 
     echo -e "${GREEN}✅ API key removed: $key${NC}"
-    reload_haproxy
+    reload_haproxy "$@"  # Pass remaining arguments (including --hot-reload)
 }
 
 update_api_key() {
     local key="$1"
     local new_group="$2"
+    shift 2  # Remove first two arguments to get remaining flags
 
     if [ -z "$key" ] || [ -z "$new_group" ]; then
-        echo -e "${RED}❌ Usage: update-key <key> <new_group>${NC}"
+        echo -e "${RED}❌ Usage: update-key <key> <new_group> [--hot-reload]${NC}"
         return 1
     fi
 
@@ -284,7 +390,7 @@ update_api_key() {
     sed -i.bak "s/^$key .*/$key $new_group/" "$API_GROUPS_MAP"
 
     echo -e "${GREEN}✅ API key $key updated: $old_group → $new_group${NC}"
-    reload_haproxy
+    reload_haproxy "$@"  # Pass remaining arguments (including --hot-reload)
 }
 
 list_api_keys() {
@@ -313,9 +419,10 @@ list_api_keys() {
 set_error_message() {
     local group="$1"
     local message="$2"
+    shift 2  # Remove first two arguments to get remaining flags
 
     if [ -z "$group" ] || [ -z "$message" ]; then
-        echo -e "${RED}❌ Usage: set-error-msg <group> <message>${NC}"
+        echo -e "${RED}❌ Usage: set-error-msg <group> <message> [--hot-reload]${NC}"
         return 1
     fi
 
@@ -330,7 +437,7 @@ set_error_message() {
         echo -e "${GREEN}✅ Added error message for $group${NC}"
     fi
 
-    reload_haproxy
+    reload_haproxy "$@"  # Pass remaining arguments (including --hot-reload)
 }
 
 get_error_message() {
@@ -437,22 +544,27 @@ show_stats() {
 # Main command handler
 case "$1" in
     "add-key")
-        add_api_key "$2" "$3"
+        shift  # Remove command name
+        add_api_key "$@"
         ;;
     "remove-key")
-        remove_api_key "$2"
+        shift  # Remove command name
+        remove_api_key "$@"
         ;;
     "update-key")
-        update_api_key "$2" "$3"
+        shift  # Remove command name
+        update_api_key "$@"
         ;;
     "list-keys")
         list_api_keys
         ;;
     "set-minute-limit")
-        set_minute_limit "$2" "$3"
+        shift  # Remove command name
+        set_minute_limit "$@"
         ;;
     "set-second-limit")
-        set_second_limit "$2" "$3"
+        shift  # Remove command name
+        set_second_limit "$@"
         ;;
     "get-limits")
         get_limits "$2"
@@ -461,13 +573,15 @@ case "$1" in
         list_all_limits
         ;;
     "set-error-msg")
-        set_error_message "$2" "$3"
+        shift  # Remove command name
+        set_error_message "$@"
         ;;
     "get-error-msg")
         get_error_message "$2"
         ;;
     "reload")
-        reload_haproxy
+        shift  # Remove command name
+        reload_haproxy "$@"
         ;;
     "validate")
         validate_map_files

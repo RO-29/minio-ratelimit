@@ -1,6 +1,11 @@
 # Centralized Version Control
 # This file defines all versions for tools and dependencies used in the project
 
+# Project directory settings
+PROJECT_DIR := $(shell pwd)
+# Defining PROJECT_ROOT for backward compatibility with existing scripts
+PROJECT_ROOT := $(PROJECT_DIR)
+
 # Go version settings
 GO_VERSION := 1.24
 # Specific version for toolchain (used in go.mod)

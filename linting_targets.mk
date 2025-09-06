@@ -48,7 +48,7 @@ lint: lint-go lint-haproxy lint-lua
 # Lint Go code
 lint-go:
 	$(call print_styled,$(CYAN),🔍 Linting Go code...)
-	@cd ./cmd/ratelimit-test && if command -v golangci-lint >/dev/null 2>&1; then \
+	@cd $(PROJECT_ROOT)/cmd/ratelimit-test && if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run ./... || echo "$(YELLOW)⚠️  Go linting issues found$(RESET)"; \
 	else \
 		echo "$(YELLOW)⚠️  golangci-lint not installed, using basic go vet...$(RESET)"; \
@@ -59,14 +59,14 @@ lint-go:
 # Check HAProxy configuration syntax
 lint-haproxy:
 	@echo "$(CYAN)🔍 Checking HAProxy configuration syntax...$(RESET)"
-	@if [ -f ./scripts/haproxy_validate.sh ]; then \
-		chmod +x ./scripts/haproxy_validate.sh; \
+	@if [ -f $(PROJECT_ROOT)/scripts/haproxy_validate.sh ]; then \
+		chmod +x $(PROJECT_ROOT)/scripts/haproxy_validate.sh; \
 		echo "$(YELLOW)Using local-only mode for HAProxy validation...$(RESET)"; \
-		./scripts/haproxy_validate.sh --local-only || exit 1; \
+		$(PROJECT_ROOT)/scripts/haproxy_validate.sh --local-only || exit 1; \
 	elif command -v haproxy >/dev/null 2>&1; then \
-		haproxy -c -f ./haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration has errors$(RESET)" && exit 1); \
+		haproxy -c -f $(PROJECT_ROOT)/haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration has errors$(RESET)" && exit 1); \
 	elif docker info >/dev/null 2>&1; then \
-		docker run --rm -v $(PWD)/haproxy:/usr/local/etc/haproxy:ro haproxy:$(HAPROXY_VERSION) haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration has errors$(RESET)" && exit 1); \
+		docker run --rm -v $(PROJECT_ROOT)/haproxy:/usr/local/etc/haproxy:ro haproxy:$(HAPROXY_VERSION) haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration has errors$(RESET)" && exit 1); \
 	else \
 		echo "$(YELLOW)⚠️  Neither HAProxy binary nor Docker available, skipping strict HAProxy syntax check...$(RESET)"; \
 	fi
@@ -75,22 +75,22 @@ lint-haproxy:
 # Check Lua scripts syntax
 lint-lua:
 	@echo "$(CYAN)🔍 Checking Lua scripts syntax...$(RESET)"
-	@if [ -f ./scripts/lua_validate.sh ]; then \
-		chmod +x ./scripts/lua_validate.sh; \
+	@if [ -f $(PROJECT_ROOT)/scripts/lua_validate.sh ]; then \
+		chmod +x $(PROJECT_ROOT)/scripts/lua_validate.sh; \
 		echo "$(YELLOW)Using local-only mode for Lua validation...$(RESET)"; \
-		./scripts/lua_validate.sh --local-only || exit 1; \
+		$(PROJECT_ROOT)/scripts/lua_validate.sh --local-only || exit 1; \
 	elif command -v luac >/dev/null 2>&1; then \
-		for script in ./haproxy/lua/*.lua; do \
+		for script in $(PROJECT_ROOT)/haproxy/lua/*.lua; do \
 			echo "Checking $${script}..."; \
 			luac -p $${script} || (echo "$(RED)❌ Lua syntax error in $${script}$(RESET)" && exit 1); \
 		done; \
 	elif command -v lua >/dev/null 2>&1; then \
-		for script in ./haproxy/lua/*.lua; do \
+		for script in $(PROJECT_ROOT)/haproxy/lua/*.lua; do \
 			echo "Checking $${script}..."; \
 			lua -e "loadfile('$${script}')" || (echo "$(RED)❌ Lua syntax error in $${script}$(RESET)" && exit 1); \
 		done; \
 	elif docker info >/dev/null 2>&1; then \
-		docker run --rm -v $(PWD)/haproxy/lua:/scripts:ro alpine:latest sh -c "for script in /scripts/*.lua; do echo \"Checking \$${script}...\"; lua -e \"loadfile('\$${script}')\" || exit 1; done" || (echo "$(RED)❌ Lua syntax errors found$(RESET)" && exit 1); \
+		docker run --rm -v $(PROJECT_ROOT)/haproxy/lua:/scripts:ro alpine:latest sh -c "for script in /scripts/*.lua; do echo \"Checking \$${script}...\"; lua -e \"loadfile('\$${script}')\" || exit 1; done" || (echo "$(RED)❌ Lua syntax errors found$(RESET)" && exit 1); \
 	else \
 		echo "$(YELLOW)⚠️  No Lua interpreter available, skipping strict Lua syntax check...$(RESET)"; \
 	fi
@@ -99,17 +99,14 @@ lint-lua:
 # Test HAProxy configuration
 test-haproxy:
 	@echo "$(CYAN)🧪 Testing HAProxy configuration...$(RESET)"
-	@if [ -f ./scripts/test_haproxy.sh ]; then \
-		chmod +x ./scripts/test_haproxy.sh; \
-		./scripts/test_haproxy.sh || exit 1; \
-	elif [ -f ./scripts/test_haproxy_config.sh ]; then \
-		echo "$(YELLOW)⚠️  Using deprecated test script...$(RESET)"; \
-		./scripts/haproxy_validate.sh --local-only || true; \
+	@if [ -f $(PROJECT_ROOT)/scripts/test_haproxy.sh ]; then \
+		chmod +x $(PROJECT_ROOT)/scripts/test_haproxy.sh; \
+		$(PROJECT_ROOT)/scripts/test_haproxy.sh || exit 1; \
 	elif command -v haproxy >/dev/null 2>&1; then \
-		haproxy -c -f ./haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration test failed$(RESET)" && exit 1); \
+		haproxy -c -f $(PROJECT_ROOT)/haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration test failed$(RESET)" && exit 1); \
 	elif docker info >/dev/null 2>&1; then \
-		mkdir -p ./test-results; \
-		docker run --rm -v $(PWD)/haproxy:/usr/local/etc/haproxy:ro \
+		mkdir -p $(PROJECT_ROOT)/test-results; \
+		docker run --rm -v $(PROJECT_ROOT)/haproxy:/usr/local/etc/haproxy:ro \
 			--name haproxy-test haproxy:$(HAPROXY_VERSION) \
 			haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration test failed$(RESET)" && exit 1); \
 	else \
@@ -120,16 +117,16 @@ test-haproxy:
 # Test Lua scripts
 test-lua:
 	@echo "$(CYAN)🧪 Testing Lua scripts...$(RESET)"
-	@mkdir -p ./test-results
-	@if [ -f ./scripts/test_lua_scripts.sh ]; then \
-		./scripts/test_lua_scripts.sh; \
+	@mkdir -p $(PROJECT_ROOT)/test-results
+	@if [ -f $(PROJECT_ROOT)/scripts/test_lua_scripts.sh ]; then \
+		$(PROJECT_ROOT)/scripts/test_lua_scripts.sh; \
 	elif command -v lua >/dev/null 2>&1; then \
-		for script in ./haproxy/lua/*.lua; do \
+		for script in $(PROJECT_ROOT)/haproxy/lua/*.lua; do \
 			echo "Running basic test for $${script}..."; \
 			lua -e "dofile('$${script}')" || (echo "$(RED)❌ Lua test failed for $${script}$(RESET)" && exit 1); \
 		done; \
 	elif docker info >/dev/null 2>&1; then \
-		docker run --rm -v $(PWD)/haproxy/lua:/scripts:ro alpine/lua:latest sh -c "for script in /scripts/*.lua; do echo \"Running basic test for $${script}...\"; lua $${script} || exit 1; done" || (echo "$(RED)❌ Lua tests failed$(RESET)" && exit 1); \
+		docker run --rm -v $(PROJECT_ROOT)/haproxy/lua:/scripts:ro alpine/lua:latest sh -c "for script in /scripts/*.lua; do echo \"Running basic test for $${script}...\"; lua $${script} || exit 1; done" || (echo "$(RED)❌ Lua tests failed$(RESET)" && exit 1); \
 	else \
 		echo "$(YELLOW)⚠️  No Lua interpreter available, skipping Lua tests...$(RESET)"; \
 	fi
@@ -143,25 +140,25 @@ validate-all: lint test-haproxy test-lua verify-versions
 ci-setup:
 	@echo "$(CYAN)🔧 Setting up CI environment...$(RESET)"
 	@echo "$(CYAN)Verifying required versions...$(RESET)"
-	@if [ -f ./scripts/check_versions.sh ]; then \
-		./scripts/check_versions.sh || (echo "$(RED)❌ Environment does not meet version requirements$(RESET)" && exit 1); \
+	@if [ -f $(PROJECT_ROOT)/scripts/check_versions.sh ]; then \
+		$(PROJECT_ROOT)/scripts/check_versions.sh || (echo "$(RED)❌ Environment does not meet version requirements$(RESET)" && exit 1); \
 	fi
-	@mkdir -p ./cmd/ratelimit-test/build ./cmd/ratelimit-test/results ./test-results ./haproxy/config
-	@cd ./cmd/ratelimit-test && go mod tidy
+	@mkdir -p $(PROJECT_ROOT)/cmd/ratelimit-test/build $(PROJECT_ROOT)/cmd/ratelimit-test/results $(PROJECT_ROOT)/test-results $(PROJECT_ROOT)/haproxy/config
+	@cd $(PROJECT_ROOT)/cmd/ratelimit-test && go mod tidy
 	@if [ -z "$(shell which golangci-lint)" ] && [ ! -z "$(shell which go)" ]; then \
 		echo "$(YELLOW)Installing golangci-lint...$(RESET)"; \
 		GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
 	fi
 	@echo "$(CYAN)Generating service accounts for testing...$(RESET)"
-	@if [ ! -f ./haproxy/config/generated_service_accounts.json ]; then \
-		chmod +x ./scripts/generate-minio-service-accounts.sh; \
+	@if [ ! -f $(PROJECT_ROOT)/haproxy/config/generated_service_accounts.json ]; then \
+		chmod +x $(PROJECT_ROOT)/scripts/generate-minio-service-accounts.sh; \
 		if [ -n "$(CI)" ]; then \
 			echo "$(YELLOW)CI environment detected, creating minimal config for testing$(RESET)"; \
-			echo '{"service_accounts": [{"access_key": "TESTKEY123456789", "secret_key": "testsecret123456789", "group": "basic"}, {"access_key": "TESTKEY987654321", "secret_key": "testsecret987654321", "group": "premium"}], "metadata": {"total_accounts": 2}}' > ./haproxy/config/generated_service_accounts.json; \
+			echo '{"service_accounts": [{"access_key": "TESTKEY123456789", "secret_key": "testsecret123456789", "group": "basic"}, {"access_key": "TESTKEY987654321", "secret_key": "testsecret987654321", "group": "premium"}], "metadata": {"total_accounts": 2}}' > $(PROJECT_ROOT)/haproxy/config/generated_service_accounts.json; \
 		else \
-			./scripts/generate-minio-service-accounts.sh || ( \
+			$(PROJECT_ROOT)/scripts/generate-minio-service-accounts.sh || ( \
 				echo "$(YELLOW)⚠️  Service account generation failed, creating minimal config$(RESET)"; \
-				echo '{"service_accounts": [{"access_key": "TESTKEY123456789", "secret_key": "testsecret123456789", "group": "basic"}, {"access_key": "TESTKEY987654321", "secret_key": "testsecret987654321", "group": "premium"}], "metadata": {"total_accounts": 2}}' > ./haproxy/config/generated_service_accounts.json; \
+				echo '{"service_accounts": [{"access_key": "TESTKEY123456789", "secret_key": "testsecret123456789", "group": "basic"}, {"access_key": "TESTKEY987654321", "secret_key": "testsecret987654321", "group": "premium"}], "metadata": {"total_accounts": 2}}' > $(PROJECT_ROOT)/haproxy/config/generated_service_accounts.json; \
 			); \
 		fi; \
 	fi
@@ -170,11 +167,12 @@ ci-setup:
 # CI test - run tests in CI environment
 ci-test: ci-setup
 	@echo "$(CYAN)🧪 Running tests in CI environment...$(RESET)"
-	@mkdir -p ./test-results
-	@cd ./cmd/ratelimit-test && go test -v ./... -coverprofile=coverage.out
-	@mv ./cmd/ratelimit-test/coverage.out ./test-results/coverage.out || true
-	@cd ./cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
-	@$(TEST_CMD) -duration=30s -accounts=2 -json -output=./test-results/ci_results.json
+	echo $(PROJECT_ROOT)
+	@mkdir -p $(PROJECT_ROOT)/test-results
+	@cd $(PROJECT_ROOT)/cmd/ratelimit-test && go test -v ./... -coverprofile=coverage.out
+	@mv $(PROJECT_ROOT)/cmd/ratelimit-test/coverage.out $(PROJECT_ROOT)/test-results/coverage.out || true
+	@cd $(PROJECT_ROOT)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	@$(TEST_CMD) -duration=30s -accounts=2 -json -output=$(PROJECT_ROOT)/test-results/ci_results.json -config=$(PROJECT_ROOT)/haproxy/config/generated_service_accounts.json
 	@echo "$(GREEN)✅ CI tests complete!$(RESET)"
 
 # CI validate - run validations in CI environment

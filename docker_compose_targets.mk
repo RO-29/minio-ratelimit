@@ -12,6 +12,20 @@ docker-compose-info:
 
 # Wrapper targets for Docker Compose commands
 up: docker-compose-info
+	@echo "Checking SSL directory structure..."
+	@if [ ! -d "$(PROJECT_DIR)/haproxy/ssl" ]; then \
+		echo "SSL directory not found, creating it..."; \
+		mkdir -p $(PROJECT_DIR)/haproxy/ssl/certs; \
+		mkdir -p $(PROJECT_DIR)/haproxy/ssl/private; \
+		echo "SSL directory structure created."; \
+	else \
+		echo "SSL directory exists, continuing..."; \
+	fi
+	@if [ ! -f "$(PROJECT_DIR)/haproxy/ssl/certs/haproxy.pem" ]; then \
+		echo "SSL certificates missing, generating self-signed certificates..."; \
+		$(PROJECT_DIR)/scripts/generate-ssl-haproxy-certificates.sh; \
+		echo "Self-signed certificates generated successfully."; \
+	fi
 	@echo "Starting all services..."
 	@$(DOCKER_COMPOSE_CMD) up -d
 	@echo "Services started. HAProxy endpoints:"
