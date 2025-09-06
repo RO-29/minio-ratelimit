@@ -43,7 +43,7 @@ include versions.mk
 # include linting_targets.mk
 # include ratelimit_targets.mk
 
-.PHONY: up down restart reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup cleanup versions update-go-version update-haproxy-version update-versions check-versions verify-versions update-all-versions
+.PHONY: up down restart restart-build build reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup cleanup versions update-go-version update-haproxy-version update-versions check-versions verify-versions update-all-versions
 
 # Default target
 help:
@@ -52,7 +52,9 @@ help:
 	@echo "Usage:"
 	@echo "  make up                - Start all services"
 	@echo "  make down              - Stop all services"
-	@echo "  make restart           - Restart all services"
+	@echo "  make restart           - Restart all services (down + up)"
+	@echo "  make build             - Build Docker images from scratch (no cache)"
+	@echo "  make restart-build     - Build from scratch and restart services"
 	@echo "  make reload            - Reload HAProxy without downtime"
 	@echo "  make logs              - View logs from all services"
 	@echo "  make status            - Check service status"

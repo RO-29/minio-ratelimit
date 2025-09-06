@@ -39,15 +39,36 @@ down: docker-compose-info
 	@echo "Services stopped"
 
 restart: docker-compose-info
-	@echo "Restarting all services..."
-	@$(DOCKER_COMPOSE_CMD) restart
+	@echo "Restarting all services (down + up)..."
+	@$(DOCKER_COMPOSE_CMD) down
+	@$(DOCKER_COMPOSE_CMD) up -d
 	@echo "Services restarted"
+	@echo "Services started. HAProxy endpoints:"
+	@echo "  - Main: http://localhost:80"
+	@echo "  - Stats: http://localhost:8404/stats"
+	@echo "  - MinIO Console: http://localhost:9091"
 
 logs: docker-compose-info
 	@$(DOCKER_COMPOSE_CMD) logs -f
 
 status: docker-compose-info
 	@$(DOCKER_COMPOSE_CMD) ps
+
+build: docker-compose-info
+	@echo "Building Docker images from scratch (no cache)..."
+	@$(DOCKER_COMPOSE_CMD) build --no-cache --force-rm
+	@echo "Docker images built from scratch"
+
+restart-build: docker-compose-info
+	@echo "Building images from scratch and restarting services..."
+	@$(DOCKER_COMPOSE_CMD) down
+	@$(DOCKER_COMPOSE_CMD) build --no-cache --force-rm
+	@$(DOCKER_COMPOSE_CMD) up -d
+	@echo "Services rebuilt and restarted"
+	@echo "Services started. HAProxy endpoints:"
+	@echo "  - Main: http://localhost:80"
+	@echo "  - Stats: http://localhost:8404/stats"
+	@echo "  - MinIO Console: http://localhost:9091"
 
 clean: docker-compose-info
 	@echo "Cleaning up Docker resources..."
