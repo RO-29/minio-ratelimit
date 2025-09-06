@@ -16,11 +16,14 @@ local default_group = "default"
 -- Pre-compiled error message template (avoid string.format overhead)
 local error_template_minute = '<?xml version="1.0" encoding="UTF-8"?><Error><Code>SlowDown</Code><Message>%s (%d requests/minute per API key)</Message><Resource>%s</Resource><RequestId>%s</RequestId><ApiKey>%s</ApiKey></Error>'
 local error_template_second = '<?xml version="1.0" encoding="UTF-8"?><Error><Code>SlowDown</Code><Message>%s - burst (%d requests/second per API key)</Message><Resource>%s</Resource><RequestId>%s</RequestId><ApiKey>%s</ApiKey></Error>'
+local error_template_bandwidth = '<?xml version="1.0" encoding="UTF-8"?><Error><Code>SlowDown</Code><Message>%s - bandwidth limit exceeded (%d bytes/minute)</Message><Resource>%s</Resource><RequestId>%s</RequestId><ApiKey>%s</ApiKey></Error>'
 
 -- Default values
 local default_minute_limit = 50
 local default_second_limit = 5
 local default_error_msg = "Rate_limit_exceeded"
+local default_bandwidth_limit_in = 104857600 -- 100 MB
+local default_bandwidth_limit_out = 209715200 -- 200 MB
 
 function check_rate_limit(txn)
     -- Fast path: Check method first (most requests are not PUT/GET)
@@ -101,6 +104,52 @@ function check_rate_limit(txn)
     txn:set_var("txn.rate_limit_exceeded", rate_not_exceeded)
 end
 
+function check_bandwidth_limit(txn)
+    -- Fast path: Check method first
+    local method = txn.sf:method()
+    if method ~= method_put and method ~= method_get then
+        txn:set_var("txn.bandwidth_limit_exceeded", rate_not_exceeded)
+        return -- Early exit
+    end
+
+    local api_key = txn:get_var("txn.api_key")
+    if not api_key or api_key == "" then
+        txn:set_var("txn.bandwidth_limit_exceeded", rate_not_exceeded)
+        return -- Early exit
+    end
+
+    local current_bandwidth_rate
+    local limit
+    if method == method_put then
+        current_bandwidth_rate = tonumber(txn.sf:sc_bytes_in_rate(2)) or 0
+        limit = tonumber(txn:get_var("txn.bandwidth_limit_in")) or default_bandwidth_limit_in
+    else -- method_get
+        current_bandwidth_rate = tonumber(txn.sf:sc_bytes_out_rate(3)) or 0
+        limit = tonumber(txn:get_var("txn.bandwidth_limit_out")) or default_bandwidth_limit_out
+    end
+
+    if current_bandwidth_rate > limit then
+        local error_message = txn:get_var("txn.error_message") or default_error_msg
+        local path = txn.sf:path()
+        local uuid = txn.sf:uuid()
+
+        local error_xml = string.format(error_template_bandwidth,
+            error_message,
+            limit,
+            path,
+            uuid,
+            api_key
+        )
+
+        txn:set_var("txn.bandwidth_limit_exceeded", rate_exceeded)
+        txn:set_var("txn.rate_limit_error", error_xml) -- Reuse the same error variable
+        return
+    end
+
+    txn:set_var("txn.bandwidth_limit_exceeded", rate_not_exceeded)
+end
+
+
 -- Function to calculate remaining requests
 function calc_remaining_requests(txn)
     -- Safer way to get the current rate
@@ -128,3 +177,4 @@ end
 -- Register the optimized functions
 core.register_action("check_rate_limit", {"http-req"}, check_rate_limit, 0)
 core.register_action("calc_remaining_requests", {"http-req"}, calc_remaining_requests, 0)
+core.register_action("check_bandwidth_limit", {"http-req"}, check_bandwidth_limit, 0)
