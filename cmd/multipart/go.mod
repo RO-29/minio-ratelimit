@@ -1,6 +1,6 @@
 module github.com/ro-29/minio-ratelimit
 
-go 1.24.7
+go 1.24
 
 require github.com/minio/minio-go/v7 v7.0.95
 
