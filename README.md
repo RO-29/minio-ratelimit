@@ -111,7 +111,16 @@ This project has the following version requirements:
 
 All version requirements are centralized in the `versions.mk` file at the root of the project. This allows for easy updating and maintaining consistency across all components.
 
-#### **Version Management Commands**
+### **Path Management**
+
+The project uses consistent path variables to ensure proper file references regardless of where the project is located:
+
+- `PROJECT_DIR`: Defined as `$(shell pwd)` in versions.mk, representing the current directory
+- `PROJECT_ROOT`: Alias for PROJECT_DIR, maintained for backward compatibility
+
+These variables are used throughout the Makefile targets and shell scripts to ensure that all paths are resolved correctly relative to the project root, regardless of which directory commands are executed from.
+
+#### **Version & Path Management Commands**
 
 ```bash
 # Display all current version information
@@ -474,13 +483,15 @@ cd minio-ratelimit
 # Generate 50 real MinIO service accounts
 ./scripts/generate-minio-service-accounts.sh
 
-# Start all services
-docker-compose up -d
+# Start all services (works from any directory)
+make up
 
 # Verify setup
 curl -I http://localhost/test-bucket/ \
   -H "Authorization: AWS testkey:signature"
 ```
+
+> **Note:** All scripts and make commands automatically detect the project directory using `PROJECT_ROOT` and `PROJECT_DIR` variables, so you can run them from any directory. The system will use the current directory when `PROJECT_ROOT` is not defined, and all paths will be resolved correctly.
 
 ### **Service Endpoints**
 
@@ -828,6 +839,8 @@ External LB Rules:
 
 ## 📁 **Project Structure**
 
+### Directory Layout
+
 ```
 minio-ratelimit/
 ├── haproxy/
@@ -866,6 +879,7 @@ minio-ratelimit/
 ├── docker_compose_targets.mk      # Docker Compose Makefile targets
 ├── linting_targets.mk             # Linting and validation Makefile targets
 ├── ratelimit_targets.mk           # Rate limiting test Makefile targets
+├── versions.mk                    # Centralized version & path management
 ├── Makefile                       # Main project Makefile
 ├── README.md                      # This file
 ├── TECHNICAL_DOCUMENTATION.md     # Technical deep dive documentation
@@ -881,6 +895,24 @@ minio-ratelimit/
     ├── old_lua_scripts/           # Previous Lua script versions
     ├── test_data/                 # Test datasets
     └── test_results/              # Historical test results
+
+### Path Management
+
+The project uses a consistent approach to path management to ensure that all scripts and Makefile targets can reference files correctly regardless of which directory commands are executed from:
+
+1. **Centralized Path Definitions**: The `versions.mk` file defines:
+   - `PROJECT_DIR := $(shell pwd)` - Current directory using shell pwd
+   - `PROJECT_ROOT := $(PROJECT_DIR)` - Alias maintained for backward compatibility
+
+2. **Path Resolution in Makefiles**:
+   - All `.mk` files use `$(PROJECT_ROOT)` for absolute paths
+   - The main `Makefile` includes `versions.mk` first to ensure path variables are available
+
+3. **Path Resolution in Scripts**:
+   - Shell scripts check for `PROJECT_ROOT` from environment
+   - If not defined, they fall back to current directory: `PROJECT_ROOT=$(pwd)`
+
+This approach ensures consistent behavior across different environments and allows the project to be run from any directory.
 ```
 
 ---
