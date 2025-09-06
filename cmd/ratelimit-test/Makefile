@@ -9,15 +9,19 @@ TEST_DURATION := 30s
 
 # Auto-detect if we're running from root or cmd/ratelimit-test directory
 ifeq ($(shell test -f haproxy/config/generated_service_accounts.json && echo "root"), root)
-    CONFIG_FILE := haproxy/config/generated_service_accounts.json
+    DEFAULT_CONFIG_FILE := haproxy/config/generated_service_accounts.json
     PROJECT_ROOT := .
 else ifeq ($(shell test -f ../../haproxy/config/generated_service_accounts.json && echo "subdir"), subdir)
-    CONFIG_FILE := ../../haproxy/config/generated_service_accounts.json
+    DEFAULT_CONFIG_FILE := ../../haproxy/config/generated_service_accounts.json
     PROJECT_ROOT := ../..
 else
-    CONFIG_FILE := haproxy/config/generated_service_accounts.json
+    DEFAULT_CONFIG_FILE := haproxy/config/generated_service_accounts.json
     PROJECT_ROOT := .
 endif
+
+# Allow overriding config file via make parameter
+# Usage: make test config=/path/to/custom/config.json
+CONFIG_FILE := $(if $(config),$(config),$(DEFAULT_CONFIG_FILE))
 
 .PHONY: help setup clean build test unit-test docker-build docker-run docker-test \
         stress-test quick-test json-export show-test-summary lint coverage \
@@ -35,6 +39,13 @@ RESET := \033[0m
 help: ## Display this help
 	@echo "$(CYAN)MinIO Rate Limiting Test Suite$(RESET)"
 	@echo "========================================"
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make [target] [config=/path/to/config.json]"
+	@echo ""
+	@echo "$(YELLOW)Example:$(RESET)"
+	@echo "  make test config=/custom/path/config.json"
+	@echo ""
+	@echo "$(YELLOW)Targets:$(RESET)"
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2 } /^##@/ { printf "\n$(YELLOW)%s$(RESET)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 setup: ## Set up the environment
@@ -80,24 +91,28 @@ coverage: setup ## Generate test coverage
 test: build ## Run MinIO rate limiting test (local mode)
 	@echo "$(CYAN)🧪 Running MinIO rate limiting test...$(RESET)"
 	@echo "$(BLUE)🧪 Running comprehensive test ($(TEST_DURATION))...$(RESET)"
+	@echo "$(BLUE)📄 Using config file: $(CONFIG_FILE)$(RESET)"
 	@./$(BUILD_DIR)/$(BINARY_NAME) -config=$(CONFIG_FILE) -duration=$(TEST_DURATION) > comprehensive_results.json
 	@echo "$(GREEN)✅ Test completed - results saved to comprehensive_results.json$(RESET)"
 	@$(MAKE) show-test-summary
 
 quick-test: build ## Run a quick test with minimal duration
 	@echo "$(CYAN)🚀 Running quick test (10s)...$(RESET)"
+	@echo "$(BLUE)📄 Using config file: $(CONFIG_FILE)$(RESET)"
 	@./$(BUILD_DIR)/$(BINARY_NAME) -config=$(CONFIG_FILE) -duration=10s -accounts=1 > quick_test_results.json
 	@echo "$(GREEN)✅ Quick test completed - results saved to quick_test_results.json$(RESET)"
 	@python3 -c "import json; data=json.load(open('quick_test_results.json')); print(f\"Total Requests: {data['summary']['TotalRequests']}\"); print(f\"Success Rate: {round(data['summary']['TotalSuccess']/data['summary']['TotalRequests']*100,1)}%\");" 2>/dev/null || echo "$(YELLOW)⚠️  Could not parse results$(RESET)"
 
 stress-test: build ## Run stress test focusing on premium tier
 	@echo "$(CYAN)💪 Running premium stress test...$(RESET)"
+	@echo "$(BLUE)📄 Using config file: $(CONFIG_FILE)$(RESET)"
 	@./$(BUILD_DIR)/$(BINARY_NAME) -config=$(CONFIG_FILE) -stress-premium -duration=60s > stress_test_results.json
 	@echo "$(GREEN)✅ Stress test completed - results saved to stress_test_results.json$(RESET)"
 	@$(MAKE) show-test-summary FILE=stress_test_results.json
 
 json-export: build ## Run test with JSON export enabled
 	@echo "$(CYAN)📊 Running test with detailed JSON export...$(RESET)"
+	@echo "$(BLUE)📄 Using config file: $(CONFIG_FILE)$(RESET)"
 	@./$(BUILD_DIR)/$(BINARY_NAME) -config=$(CONFIG_FILE) -duration=$(TEST_DURATION) -json -output=detailed_results.json > test_output.log
 	@echo "$(GREEN)✅ Test with JSON export completed!$(RESET)"
 
@@ -113,7 +128,9 @@ docker-build: ## Build Docker image
 
 docker-run: docker-build ## Run the test in Docker container
 	@echo "$(CYAN)🐳 Running test in Docker container...$(RESET)"
-	@docker run --rm -v $(PWD)/docker-results:/results $(DOCKER_IMAGE) -duration=$(TEST_DURATION) -json -output=/results/docker_results.json
+	@echo "$(BLUE)📄 Using config file: $(CONFIG_FILE)$(RESET)"
+	@mkdir -p $(PWD)/docker-results
+	@docker run --rm -v $(PWD)/docker-results:/results -v $(CONFIG_FILE):/app/config.json $(DOCKER_IMAGE) -config=/app/config.json -duration=$(TEST_DURATION) -json -output=/results/docker_results.json
 	@echo "$(GREEN)✅ Docker test completed - results in docker-results/docker_results.json$(RESET)"
 
 docker-test: ## Build and run test in Docker
@@ -124,10 +141,11 @@ docker-test: ## Build and run test in Docker
 load-test: build ## Run extended load test (5 minutes)
 	@echo "$(CYAN)💪 Running extended load test...$(RESET)"
 	@echo "$(YELLOW)⚠️  This will run for 5 minutes and generate significant data$(RESET)"
-	@./$(BUILD_DIR)/$(BINARY_NAME) -duration=5m > comprehensive_results_load.json
+	@echo "$(BLUE)📄 Using config file: $(CONFIG_FILE)$(RESET)"
+	@./$(BUILD_DIR)/$(BINARY_NAME) -config=$(CONFIG_FILE) -duration=5m > comprehensive_results_load.json
 	@echo "$(GREEN)✅ Load test completed - results saved to comprehensive_results_load.json$(RESET)"
 	@echo "$(YELLOW)⚠️  This will run for 5 minutes and generate significant data$(RESET)"
-	@timeout 300 ./build/minio-ratelimit-test > comprehensive_results_load.json || echo "$(YELLOW)⏰ Load test completed$(RESET)"
+	@timeout 300 ./build/minio-ratelimit-test -config=$(CONFIG_FILE) > comprehensive_results_load.json || echo "$(YELLOW)⏰ Load test completed$(RESET)"
 	@mv comprehensive_results_load.json comprehensive_results.json
 	@$(MAKE) ingest
 	@echo "$(GREEN)✅ Load test completed and data ingested$(RESET)"

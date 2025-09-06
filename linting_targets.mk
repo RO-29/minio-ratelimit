@@ -102,9 +102,6 @@ test-haproxy:
 	@if [ -f ./scripts/test_haproxy.sh ]; then \
 		chmod +x ./scripts/test_haproxy.sh; \
 		./scripts/test_haproxy.sh || exit 1; \
-	elif [ -f ./scripts/test_haproxy_config.sh ]; then \
-		echo "$(YELLOW)⚠️  Using deprecated test script...$(RESET)"; \
-		./scripts/haproxy_validate.sh --local-only || true; \
 	elif command -v haproxy >/dev/null 2>&1; then \
 		haproxy -c -f ./haproxy/haproxy.cfg || (echo "$(RED)❌ HAProxy configuration test failed$(RESET)" && exit 1); \
 	elif docker info >/dev/null 2>&1; then \

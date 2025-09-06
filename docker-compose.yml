@@ -28,17 +28,17 @@ services:
 
   # HAProxy Instance 1 - Active-Active Setup
   haproxy1:
-    image: haproxy:${HAPROXY_VERSION:-3.0}
+    build:
+      context: ./haproxy
+      args:
+        HAPROXY_VERSION: ${HAPROXY_VERSION:-3.0}
     ports:
       - "80:80"
       - "443:443"
       - "8404:8404"
     volumes:
-      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-      - ./haproxy/lua/extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
-      - ./haproxy/lua/dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
-      - ./haproxy/ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
-      - ./haproxy/config:/usr/local/etc/haproxy/config:ro
+      - ./haproxy/config:/usr/local/etc/haproxy/config:rw  # Allow write for hot reload
+      - ./haproxy/ssl/certs:/etc/ssl/certs:ro  # Mount SSL certificates
     depends_on:
       - minio
     healthcheck:
@@ -49,17 +49,17 @@ services:
 
   # HAProxy Instance 2 - Active-Active Setup
   haproxy2:
-    image: haproxy:${HAPROXY_VERSION:-3.0}
+    build:
+      context: ./haproxy
+      args:
+        HAPROXY_VERSION: ${HAPROXY_VERSION:-3.0}
     ports:
       - "81:80"
       - "444:443"
       - "8405:8404"
     volumes:
-      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-      - ./haproxy/lua/extract_api_keys.lua:/usr/local/etc/haproxy/extract_api_keys.lua:ro
-      - ./haproxy/lua/dynamic_rate_limiter.lua:/usr/local/etc/haproxy/dynamic_rate_limiter.lua:ro
-      - ./haproxy/ssl/certs/haproxy.pem:/etc/ssl/certs/haproxy.pem:ro
-      - ./haproxy/config:/usr/local/etc/haproxy/config:ro
+      - ./haproxy/config:/usr/local/etc/haproxy/config:rw  # Allow write for hot reload
+      - ./haproxy/ssl/certs:/etc/ssl/certs:ro  # Mount SSL certificates
     depends_on:
       - minio
     healthcheck:

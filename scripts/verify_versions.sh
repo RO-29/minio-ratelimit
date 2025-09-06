@@ -127,8 +127,7 @@ echo -e "\nChecking Lua version references..."
 while IFS= read -r file; do
   if grep -q "lua-" "$file" || grep -q "lua[0-9]" "$file"; then
     # Skip files that don't explicitly need a Lua version
-    if [[ "$file" == *"test_haproxy_config.sh"* ||
-          "$file" == *"test_haproxy.sh"* ||
+    if [[ "$file" == *"test_haproxy.sh"* ||
           "$file" == *"haproxy_validate.sh"* ||
           "$file" == *"validate_rate_limiting.sh"* ]]; then
       echo -e "${YELLOW}⚠️  Skipping Lua version check for utility script: $file${NC}"
