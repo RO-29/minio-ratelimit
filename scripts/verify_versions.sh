@@ -8,7 +8,12 @@ set -e
 
 # Source the versions file
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the project root directory (parent of script directory)
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Set current directory as fallback if PROJECT_ROOT is empty or invalid
+if [ ! -d "$PROJECT_ROOT" ] || [ "$PROJECT_ROOT" = "/" ]; then
+    PROJECT_ROOT="$(pwd)"
+fi
 source "$SCRIPT_DIR/export_versions.sh"
 
 echo "🔍 Verifying versions across the project..."

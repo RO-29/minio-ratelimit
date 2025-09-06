@@ -167,6 +167,7 @@ ci-setup:
 # CI test - run tests in CI environment
 ci-test: ci-setup
 	@echo "$(CYAN)🧪 Running tests in CI environment...$(RESET)"
+	echo $(PROJECT_ROOT)
 	@mkdir -p $(PROJECT_ROOT)/test-results
 	@cd $(PROJECT_ROOT)/cmd/ratelimit-test && go test -v ./... -coverprofile=coverage.out
 	@mv $(PROJECT_ROOT)/cmd/ratelimit-test/coverage.out $(PROJECT_ROOT)/test-results/coverage.out || true
