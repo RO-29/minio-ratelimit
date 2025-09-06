@@ -22,6 +22,10 @@ local default_minute_limit = 50
 local default_second_limit = 5
 local default_error_msg = "Rate_limit_exceeded"
 
+-- Bandwidth limiting defaults (bytes per second)
+local default_download_limit = 1048576  -- 1 MB/s
+local default_upload_limit = 524288     -- 512 KB/s
+
 function check_rate_limit(txn)
     -- Fast path: Check method first (most requests are not PUT/GET)
     local method = txn.sf:method()
@@ -125,6 +129,42 @@ function calc_remaining_requests(txn)
                           rate_limit, current_rate, remaining))
 end
 
+-- NEW: Function to check bandwidth limits and set variables for monitoring
+function check_bandwidth_limits(txn)
+    local api_key = txn:get_var("txn.api_key")
+    
+    -- Skip bandwidth limiting for empty API keys
+    if not api_key or api_key == "" then
+        return
+    end
+    
+    -- Note: Bandwidth usage tracking will be handled by HAProxy's built-in bandwidth filters
+    -- We can monitor via HAProxy stats interface rather than stick tables
+    
+    -- Get bandwidth limits from variables set by map files
+    local download_limit = tonumber(txn:get_var("txn.bw_download_limit")) or default_download_limit
+    local upload_limit = tonumber(txn:get_var("txn.bw_upload_limit")) or default_upload_limit
+    
+    -- Log bandwidth limits for debugging (can be disabled in production)
+    core.Debug(string.format("API Key: %s, Bandwidth limits set - Download: %s bytes/s, Upload: %s bytes/s", 
+                            api_key, format_bytes(download_limit), format_bytes(upload_limit)))
+end
+
+-- Helper function to format bytes for human-readable output
+function format_bytes(bytes)
+    if bytes >= 1073741824 then
+        return string.format("%.1f GB/s", bytes / 1073741824)
+    elseif bytes >= 1048576 then
+        return string.format("%.1f MB/s", bytes / 1048576)
+    elseif bytes >= 1024 then
+        return string.format("%.1f KB/s", bytes / 1024)
+    else
+        return string.format("%d bytes/s", bytes)
+    end
+end
+
 -- Register the optimized functions
 core.register_action("check_rate_limit", {"http-req"}, check_rate_limit, 0)
 core.register_action("calc_remaining_requests", {"http-req"}, calc_remaining_requests, 0)
+-- NEW: Register bandwidth checking function
+core.register_action("check_bandwidth_limits", {"http-req"}, check_bandwidth_limits, 0)

@@ -32,10 +32,10 @@ func safeKeyPrefix(accessKey string) string {
 // runComprehensiveTests executes all test types for the given accounts
 func runComprehensiveTests(ctx context.Context, accounts []ServiceAccount, progress *ProgressTracker) []TestResult {
 	var wg sync.WaitGroup
-	results := make(chan TestResult, len(accounts)*4) // 4 test types per account
+	results := make(chan TestResult, len(accounts)*5) // 5 test types per account (added bandwidth test)
 
 	for _, account := range accounts {
-		wg.Add(4) // MinIO, AWS S3, HTTP API, and Burst tests
+		wg.Add(5) // MinIO, AWS S3, HTTP API, Burst tests, and Bandwidth test
 
 		// MinIO Go Client Test with monitoring
 		go func(acc ServiceAccount) {
@@ -62,6 +62,13 @@ func runComprehensiveTests(ctx context.Context, accounts []ServiceAccount, progr
 		go func(acc ServiceAccount) {
 			defer wg.Done()
 			result := testBurstRequests(ctx, acc, progress)
+			results <- result
+		}(account)
+
+		// NEW: Bandwidth Test to test bandwidth limits
+		go func(acc ServiceAccount) {
+			defer wg.Done()
+			result := testBandwidthLimiting(ctx, acc, progress)
 			results <- result
 		}(account)
 	}
@@ -394,6 +401,8 @@ func testHTTPAPIEnhanced(ctx context.Context, account ServiceAccount, progress *
 				"X-Auth-Method", "X-Ratelimit-Group", "X-Ratelimit-Limit-Per-Second",
 				"X-Ratelimit-Limit-Per-Minute", "X-Ratelimit-Remaining", "X-Ratelimit-Current-Per-Second",
 				"X-Ratelimit-Current-Per-Minute", "X-Ratelimit-Reset", "X-Api-Key", "Date", "Server",
+				// NEW: Bandwidth headers
+				"X-Bandwidth-Limit-Download", "X-Bandwidth-Limit-Upload",
 			}
 
 			for _, header := range importantHeaders {
@@ -557,6 +566,8 @@ func testBurstRequests(ctx context.Context, account ServiceAccount, progress *Pr
 					"X-Ratelimit-Limit-Per-Minute", "X-Ratelimit-Remaining",
 					"X-Ratelimit-Current-Per-Second", "X-Ratelimit-Current-Per-Minute",
 					"X-Ratelimit-Reset", "Date",
+					// NEW: Bandwidth headers
+					"X-Bandwidth-Limit-Download", "X-Bandwidth-Limit-Upload",
 				}
 
 				for _, header := range burstHeaders {
@@ -664,7 +675,7 @@ func testPremiumStressHTTP(ctx context.Context, account ServiceAccount, progress
 				Headers:    make(map[string]string),
 			}
 
-			for _, header := range []string{"X-Auth-Method", "X-Ratelimit-Group", "X-Ratelimit-Limit-Per-Second", "X-Ratelimit-Current-Per-Second"} {
+			for _, header := range []string{"X-Auth-Method", "X-Ratelimit-Group", "X-Ratelimit-Limit-Per-Second", "X-Ratelimit-Current-Per-Second", "X-Bandwidth-Limit-Download", "X-Bandwidth-Limit-Upload"} {
 				if value := resp.Header.Get(header); value != "" {
 					headerCapture.Headers[header] = value
 				}
@@ -869,5 +880,145 @@ summary:
 	if result.RequestsSent > 0 {
 		result.AvgLatencyMs = time.Since(start).Milliseconds() / int64(result.RequestsSent)
 	}
+	return result
+}
+
+// testBandwidthLimiting tests bandwidth limits for upload and download
+func testBandwidthLimiting(ctx context.Context, account ServiceAccount, progress *ProgressTracker) TestResult {
+	result := TestResult{
+		APIKey:         account.AccessKey,
+		Group:          account.Group,
+		Method:         "Bandwidth-Test",
+		HeaderCaptures: make([]ResponseHeaders, 0),
+		ErrorDetails:   make(map[string]int),
+		ErrorExamples:  make([]ErrorExample, 0),
+	}
+
+	// Perform bandwidth tests
+	bandwidthTest := performBandwidthTest(ctx, account, progress)
+	result.BandwidthTest = bandwidthTest
+
+	// Set basic result metrics based on bandwidth test
+	if bandwidthTest.UploadTestPassed || bandwidthTest.DownloadTestPassed {
+		result.Success = 1
+		atomic.AddInt64(&progress.successCount, 1)
+	} else {
+		result.Errors = 1
+		atomic.AddInt64(&progress.errorCount, 1)
+	}
+	result.RequestsSent = 1
+	atomic.AddInt64(&progress.totalRequests, 1)
+
+	return result
+}
+
+// performBandwidthTest performs actual bandwidth testing with file upload/download
+func performBandwidthTest(ctx context.Context, account ServiceAccount, progress *ProgressTracker) *BandwidthTestResult {
+	client := &http.Client{Timeout: 30 * time.Second}
+	
+	result := &BandwidthTestResult{
+		BandwidthErrorsUpload:   make([]string, 0),
+		BandwidthErrorsDownload: make([]string, 0),
+	}
+
+	testStart := time.Now()
+
+	// Test data: 2MB for upload test
+	testData := make([]byte, 2*1024*1024) // 2MB
+	for i := range testData {
+		testData[i] = byte(i % 256)
+	}
+	result.DataTransferredBytes = int64(len(testData))
+
+	objectKey := fmt.Sprintf("bandwidth-test-%s-%d", safeKeyPrefix(account.AccessKey), time.Now().Unix())
+
+	// Test Upload Speed
+	uploadStart := time.Now()
+	req, err := http.NewRequestWithContext(ctx, "PUT", 
+		fmt.Sprintf("http://localhost/test-bucket/%s", objectKey), 
+		bytes.NewReader(testData))
+	if err != nil {
+		result.BandwidthErrorsUpload = append(result.BandwidthErrorsUpload, err.Error())
+		result.UploadTestPassed = false
+	} else {
+		req.Header.Set("Authorization", fmt.Sprintf("AWS %s:testsignature", account.AccessKey))
+		req.Header.Set("Content-Type", "application/octet-stream")
+
+		resp, err := client.Do(req)
+		uploadDuration := time.Since(uploadStart)
+		
+		if err != nil {
+			result.BandwidthErrorsUpload = append(result.BandwidthErrorsUpload, err.Error())
+			result.UploadTestPassed = false
+		} else {
+			defer resp.Body.Close()
+			
+			// Calculate upload speed
+			result.UploadSpeedBytesPerSec = int64(float64(len(testData)) / uploadDuration.Seconds())
+			
+			// Extract bandwidth limits from headers
+			if limit := resp.Header.Get("X-Bandwidth-Limit-Upload"); limit != "" {
+				if val, err := strconv.ParseInt(limit, 10, 64); err == nil {
+					result.UploadLimitBytesPerSec = val
+				}
+			}
+			
+			if limit := resp.Header.Get("X-Bandwidth-Limit-Download"); limit != "" {
+				if val, err := strconv.ParseInt(limit, 10, 64); err == nil {
+					result.DownloadLimitBytesPerSec = val
+				}
+			}
+			
+			// Check if upload was throttled (speed significantly below limit)
+			if result.UploadLimitBytesPerSec > 0 {
+				efficiency := float64(result.UploadSpeedBytesPerSec) / float64(result.UploadLimitBytesPerSec)
+				result.UploadThrottled = efficiency < 0.8 // If speed is less than 80% of limit
+			}
+			
+			result.UploadTestPassed = resp.StatusCode >= 200 && resp.StatusCode < 300
+		}
+	}
+
+	// Test Download Speed (only if upload was successful)
+	if result.UploadTestPassed {
+		downloadStart := time.Now()
+		req, err := http.NewRequestWithContext(ctx, "GET", 
+			fmt.Sprintf("http://localhost/test-bucket/%s", objectKey), nil)
+		if err != nil {
+			result.BandwidthErrorsDownload = append(result.BandwidthErrorsDownload, err.Error())
+			result.DownloadTestPassed = false
+		} else {
+			req.Header.Set("Authorization", fmt.Sprintf("AWS %s:testsignature", account.AccessKey))
+
+			resp, err := client.Do(req)
+			downloadDuration := time.Since(downloadStart)
+			
+			if err != nil {
+				result.BandwidthErrorsDownload = append(result.BandwidthErrorsDownload, err.Error())
+				result.DownloadTestPassed = false
+			} else {
+				defer resp.Body.Close()
+				
+				if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+					// Calculate download speed
+					result.DownloadSpeedBytesPerSec = int64(float64(len(testData)) / downloadDuration.Seconds())
+					
+					// Check if download was throttled
+					if result.DownloadLimitBytesPerSec > 0 {
+						efficiency := float64(result.DownloadSpeedBytesPerSec) / float64(result.DownloadLimitBytesPerSec)
+						result.DownloadThrottled = efficiency < 0.8
+					}
+					
+					result.DownloadTestPassed = true
+				} else {
+					result.BandwidthErrorsDownload = append(result.BandwidthErrorsDownload, 
+						fmt.Sprintf("HTTP %d", resp.StatusCode))
+					result.DownloadTestPassed = false
+				}
+			}
+		}
+	}
+
+	result.TestDuration = time.Since(testStart)
 	return result
 }
