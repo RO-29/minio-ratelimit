@@ -11,12 +11,13 @@ import (
 // generateSummary creates a comprehensive test summary from results
 func generateSummary(results []TestResult, duration time.Duration) TestSummary {
 	summary := TestSummary{
-		TotalTests:        len(results),
-		Duration:          duration,
-		ByGroup:           map[string]TestResult{},
-		AuthMethods:       map[string]int{},
-		RateLimitAnalysis: map[string]RateLimitAnalysis{},
-		BurstPatterns:     map[string][]BurstEvent{},
+		TotalTests:         len(results),
+		Duration:           duration,
+		ByGroup:            map[string]TestResult{},
+		AuthMethods:        map[string]int{},
+		RateLimitAnalysis:  map[string]RateLimitAnalysis{},
+		BurstPatterns:      map[string][]BurstEvent{},
+		BandwidthAnalysis:  map[string]BandwidthAnalysis{}, // NEW: Bandwidth analysis
 		HeaderAnalysis: HeaderAnalysis{
 			UniqueAuthMethods: make([]string, 0),
 			RateLimitHeaders:  make(map[string]int64),
@@ -26,6 +27,7 @@ func generateSummary(results []TestResult, duration time.Duration) TestSummary {
 
 	groupStats := map[string]*TestResult{}
 	groupAnalysis := map[string]*RateLimitAnalysis{}
+	bandwidthAnalysis := map[string]*BandwidthAnalysis{} // NEW: Bandwidth analysis tracking
 
 	for _, result := range results {
 		// Overall totals
@@ -108,6 +110,63 @@ func generateSummary(results []TestResult, duration time.Duration) TestSummary {
 
 				ga.ThrottleEvents = append(ga.ThrottleEvents, throttleEvent)
 			}
+
+			// NEW: Extract bandwidth headers
+			if downloadLimitStr, exists := header.Headers["X-Bandwidth-Limit-Download"]; exists {
+				if limit, err := strconv.ParseInt(downloadLimitStr, 10, 64); err == nil {
+					summary.HeaderAnalysis.RateLimitHeaders["X-Bandwidth-Limit-Download"] = limit
+				}
+			}
+
+			if uploadLimitStr, exists := header.Headers["X-Bandwidth-Limit-Upload"]; exists {
+				if limit, err := strconv.ParseInt(uploadLimitStr, 10, 64); err == nil {
+					summary.HeaderAnalysis.RateLimitHeaders["X-Bandwidth-Limit-Upload"] = limit
+				}
+			}
+		}
+
+		// NEW: Process bandwidth test results
+		if result.BandwidthTest != nil {
+			key := result.Group
+			if bandwidthAnalysis[key] == nil {
+				bandwidthAnalysis[key] = &BandwidthAnalysis{
+					Group: result.Group,
+				}
+			}
+
+			ba := bandwidthAnalysis[key]
+			ba.TotalBandwidthTests++
+
+			// Set configured limits from bandwidth test
+			if result.BandwidthTest.DownloadLimitBytesPerSec > 0 {
+				ba.ConfiguredDownloadLimit = result.BandwidthTest.DownloadLimitBytesPerSec
+			}
+			if result.BandwidthTest.UploadLimitBytesPerSec > 0 {
+				ba.ConfiguredUploadLimit = result.BandwidthTest.UploadLimitBytesPerSec
+			}
+
+			// Accumulate measured speeds (we'll average them later)
+			ba.MeasuredDownloadSpeed += result.BandwidthTest.DownloadSpeedBytesPerSec
+			ba.MeasuredUploadSpeed += result.BandwidthTest.UploadSpeedBytesPerSec
+
+			// Count successful tests
+			if result.BandwidthTest.DownloadTestPassed {
+				ba.DownloadTestsSuccessful++
+			}
+			if result.BandwidthTest.UploadTestPassed {
+				ba.UploadTestsSuccessful++
+			}
+
+			// Count throttle events
+			if result.BandwidthTest.DownloadThrottled {
+				ba.BandwidthThrottleEvents++
+			}
+			if result.BandwidthTest.UploadThrottled {
+				ba.BandwidthThrottleEvents++
+			}
+
+			// Accumulate test durations
+			ba.AverageTestDuration += result.BandwidthTest.TestDuration
 		}
 
 		// Calculate success rate for group
@@ -138,10 +197,29 @@ func generateSummary(results []TestResult, duration time.Duration) TestSummary {
 		}
 	}
 
-	// Copy to summary
+	// Copy to summary and finalize bandwidth analysis
 	for group, stats := range groupStats {
 		summary.ByGroup[group] = *stats
 		summary.RateLimitAnalysis[group] = *groupAnalysis[group]
+	}
+
+	// NEW: Finalize bandwidth analysis calculations
+	for group, ba := range bandwidthAnalysis {
+		// Average the speeds if we have tests
+		if ba.TotalBandwidthTests > 0 {
+			ba.MeasuredDownloadSpeed = ba.MeasuredDownloadSpeed / int64(ba.TotalBandwidthTests)
+			ba.MeasuredUploadSpeed = ba.MeasuredUploadSpeed / int64(ba.TotalBandwidthTests)
+			ba.AverageTestDuration = ba.AverageTestDuration / time.Duration(ba.TotalBandwidthTests)
+
+			// Calculate efficiency percentages
+			if ba.ConfiguredDownloadLimit > 0 {
+				ba.DownloadEfficiency = float64(ba.MeasuredDownloadSpeed) * 100.0 / float64(ba.ConfiguredDownloadLimit)
+			}
+			if ba.ConfiguredUploadLimit > 0 {
+				ba.UploadEfficiency = float64(ba.MeasuredUploadSpeed) * 100.0 / float64(ba.ConfiguredUploadLimit)
+			}
+		}
+		summary.BandwidthAnalysis[group] = *ba
 	}
 
 	return summary
@@ -235,6 +313,34 @@ func printReport(summary TestSummary) {
 				fmt.Printf("      Non-rate-limit errors: %.1f%% (mostly 400 Bad Request from test bucket not existing)\n", nonRateLimitPercentage)
 			}
 			fmt.Printf("\n")
+		}
+	}
+
+	// NEW: Bandwidth analysis section
+	if len(summary.BandwidthAnalysis) > 0 {
+		fmt.Printf("🌐 BANDWIDTH LIMITING ANALYSIS:\n")
+		fmt.Printf("=================================\n")
+
+		for _, group := range groups {
+			if ba, exists := summary.BandwidthAnalysis[group]; exists {
+				fmt.Printf("📊 %s TIER BANDWIDTH PERFORMANCE:\n", strings.ToUpper(group))
+				fmt.Printf("  📥 Download: %s configured | %s measured (%.1f%% efficiency)\n",
+					formatBytesPerSec(ba.ConfiguredDownloadLimit),
+					formatBytesPerSec(ba.MeasuredDownloadSpeed),
+					ba.DownloadEfficiency)
+				fmt.Printf("  📤 Upload: %s configured | %s measured (%.1f%% efficiency)\n",
+					formatBytesPerSec(ba.ConfiguredUploadLimit),
+					formatBytesPerSec(ba.MeasuredUploadSpeed),
+					ba.UploadEfficiency)
+				fmt.Printf("  🧪 Tests: %d total | ✅ %d down OK | ✅ %d up OK | ⚡ %d throttled\n",
+					ba.TotalBandwidthTests,
+					ba.DownloadTestsSuccessful,
+					ba.UploadTestsSuccessful,
+					ba.BandwidthThrottleEvents)
+				fmt.Printf("  ⏱️  Average Test Duration: %v\n",
+					ba.AverageTestDuration)
+				fmt.Printf("\n")
+			}
 		}
 	}
 
@@ -341,5 +447,20 @@ func getStatusCodeName(code int) string {
 		return "Internal Server Error"
 	default:
 		return "Unknown"
+	}
+}
+
+// formatBytesPerSec formats bytes per second into human-readable format
+func formatBytesPerSec(bytesPerSec int64) string {
+	if bytesPerSec >= 1073741824 {
+		return fmt.Sprintf("%.1f GB/s", float64(bytesPerSec)/1073741824)
+	} else if bytesPerSec >= 1048576 {
+		return fmt.Sprintf("%.1f MB/s", float64(bytesPerSec)/1048576)
+	} else if bytesPerSec >= 1024 {
+		return fmt.Sprintf("%.1f KB/s", float64(bytesPerSec)/1024)
+	} else if bytesPerSec > 0 {
+		return fmt.Sprintf("%d bytes/s", bytesPerSec)
+	} else {
+		return "0 bytes/s"
 	}
 }
