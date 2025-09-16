@@ -43,7 +43,7 @@ include versions.mk
 # include linting_targets.mk
 # include ratelimit_targets.mk
 
-.PHONY: up down restart restart-build build reload logs status clean reload-haproxy haproxy-stats test-limits backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup cleanup versions update-go-version update-haproxy-version update-versions check-versions verify-versions update-all-versions
+.PHONY: up down restart restart-build build reload logs status clean reload-haproxy haproxy-stats test-limits test-headers test-headers-real test-headers-basic test-headers-standard test-headers-premium test-simple-headers test-single-request backup-configs increase-limits update-maps help test-basic test-standard test-premium test-stress test-quick test-extended test-export test-all-tiers test-custom compare-results ensure-results-dir lint lint-go lint-haproxy lint-lua test-haproxy test-lua validate-all ci-test ci-validate ci-setup cleanup versions update-go-version update-haproxy-version update-versions check-versions verify-versions update-all-versions
 
 # Default target
 help:
@@ -64,6 +64,13 @@ help:
 	@echo "  make reload-haproxy    - Reload only HAProxy configs"
 	@echo "  make haproxy-stats     - Open HAProxy stats in browser"
 	@echo "  make test-limits       - Run a simple rate limit test"
+	@echo "  make test-headers      - Show raw request/response headers for all tiers (simple curl)"
+	@echo "  make test-headers-real - Show real S3 authenticated requests with proper headers"
+	@echo "  make test-headers-basic      - Show headers for basic tier only (curl + S3)"
+	@echo "  make test-headers-standard   - Show headers for standard tier only (curl + S3)"
+	@echo "  make test-headers-premium    - Show headers for premium tier only (curl + S3)"
+	@echo "  make test-simple-headers     - Show only rate limit headers for all tiers (clean output)"
+	@echo "  make test-single-request     - Complete HTTP headers for single request per tier"
 	@echo ""
 	@echo "Configuration management:"
 	@echo "  make backup-configs    - Backup all configuration files"
@@ -140,6 +147,132 @@ test-limits:
 	@curl -v -H "Authorization: AWS4-HMAC-SHA256 Credential=5HQZO7EDOM4XBNO642GQ/20250904/us-east-1/s3/aws4_request" http://localhost/
 	@echo "\n\nChecking response with verbose output to see all headers..."
 	@curl -v -H "Authorization: AWS4-HMAC-SHA256 Credential=5HQZO7EDOM4XBNO642GQ/20250904/us-east-1/s3/aws4_request" http://localhost/
+
+# Show raw HTTP request/response headers for all tiers
+test-headers:
+	@echo "🔍 RAW HTTP Headers - All Account Tiers"
+	@echo "======================================="
+	@echo ""
+	@echo "📤 BASIC TIER - Raw Request/Response Headers:"
+	@echo "---------------------------------------------"
+	@echo "Access Key: $$(jq -r '.service_accounts[] | select(.group=="basic") | .access_key' haproxy/config/generated_service_accounts.json | head -1)"
+	@echo ""
+	@cd $(PROJECT_DIR) && curl -v -X GET -H "Host: localhost" -H "Content-Type: application/xml" -H "Authorization: Bearer $$(jq -r '.service_accounts[] | select(.group=="basic") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" 2>&1 || true
+	@echo ""
+	@echo "Simple request (no auth):"
+	@cd $(PROJECT_DIR) && curl -v -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="basic") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" 2>&1 || true
+	@echo ""
+	@echo ""
+	@echo "📤 STANDARD TIER - Raw Request/Response Headers:"
+	@echo "-----------------------------------------------"
+	@echo "Access Key: $$(jq -r '.service_accounts[] | select(.group=="standard") | .access_key' haproxy/config/generated_service_accounts.json | head -1)"
+	@echo ""
+	@cd $(PROJECT_DIR) && curl -v -X GET -H "Host: localhost" -H "Content-Type: application/xml" -H "Authorization: Bearer $$(jq -r '.service_accounts[] | select(.group=="standard") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" 2>&1 || true
+	@echo ""
+	@echo "Simple request (no auth):"
+	@cd $(PROJECT_DIR) && curl -v -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="standard") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" 2>&1 || true
+	@echo ""
+	@echo ""
+	@echo "📤 PREMIUM TIER - Raw Request/Response Headers:"
+	@echo "----------------------------------------------"
+	@echo "Access Key: $$(jq -r '.service_accounts[] | select(.group=="premium") | .access_key' haproxy/config/generated_service_accounts.json | head -1)"
+	@echo ""
+	@cd $(PROJECT_DIR) && curl -v -X GET -H "Host: localhost" -H "Content-Type: application/xml" -H "Authorization: Bearer $$(jq -r '.service_accounts[] | select(.group=="premium") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" 2>&1 || true
+	@echo ""
+	@echo "Simple request (no auth):"
+	@cd $(PROJECT_DIR) && curl -v -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="premium") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" 2>&1 || true
+
+# Use the Go test tool for real S3 auth requests
+test-headers-real:
+	@echo "🔍 REAL S3 AUTHENTICATED REQUESTS - All Tiers"
+	@echo "============================================="
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=3s -accounts=1 -tiers=basic,standard,premium -verbose -config=$(if $(config),$(config),$(PROJECT_DIR)/haproxy/config/generated_service_accounts.json) 2>&1 | head -200
+
+# Show raw headers for specific tier only
+test-headers-basic:
+	@echo "🔍 BASIC TIER - Raw HTTP Request/Response Headers"
+	@echo "================================================"
+	@echo "Access Key: $$(jq -r '.service_accounts[] | select(.group=="basic") | .access_key' $(if $(config),$(config),haproxy/config/generated_service_accounts.json) | head -1)"
+	@echo ""
+	@echo "Bearer token request:"
+	@cd $(PROJECT_DIR) && curl -v -X GET -H "Host: localhost" -H "Authorization: Bearer $$(jq -r '.service_accounts[] | select(.group=="basic") | .access_key' $(if $(config),$(config),haproxy/config/generated_service_accounts.json) | head -1)" "http://localhost/" 2>&1 || true
+	@echo ""
+	@echo "API Key request:"
+	@cd $(PROJECT_DIR) && curl -v -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="basic") | .access_key' $(if $(config),$(config),haproxy/config/generated_service_accounts.json) | head -1)" "http://localhost/" 2>&1 || true
+	@echo ""
+	@echo "Real S3 request:"
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=2s -accounts=1 -tiers=basic -verbose -config=$(if $(config),$(config),$(PROJECT_DIR)/haproxy/config/generated_service_accounts.json) 2>&1 | head -50
+
+test-headers-standard:
+	@echo "🔍 STANDARD TIER - Raw HTTP Request/Response Headers"
+	@echo "==================================================="
+	@echo "Access Key: $$(jq -r '.service_accounts[] | select(.group=="standard") | .access_key' $(if $(config),$(config),haproxy/config/generated_service_accounts.json) | head -1)"
+	@echo ""
+	@echo "Bearer token request:"
+	@cd $(PROJECT_DIR) && curl -v -X GET -H "Host: localhost" -H "Authorization: Bearer $$(jq -r '.service_accounts[] | select(.group=="standard") | .access_key' $(if $(config),$(config),haproxy/config/generated_service_accounts.json) | head -1)" "http://localhost/" 2>&1 || true
+	@echo ""
+	@echo "API Key request:"
+	@cd $(PROJECT_DIR) && curl -v -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="standard") | .access_key' $(if $(config),$(config),haproxy/config/generated_service_accounts.json) | head -1)" "http://localhost/" 2>&1 || true
+	@echo ""
+	@echo "Real S3 request:"
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=2s -accounts=1 -tiers=standard -verbose -config=$(if $(config),$(config),$(PROJECT_DIR)/haproxy/config/generated_service_accounts.json) 2>&1 | head -50
+
+test-headers-premium:
+	@echo "🔍 PREMIUM TIER - Raw HTTP Request/Response Headers"
+	@echo "=================================================="
+	@echo "Access Key: $$(jq -r '.service_accounts[] | select(.group=="premium") | .access_key' $(if $(config),$(config),haproxy/config/generated_service_accounts.json) | head -1)"
+	@echo ""
+	@echo "Bearer token request:"
+	@cd $(PROJECT_DIR) && curl -v -X GET -H "Host: localhost" -H "Authorization: Bearer $$(jq -r '.service_accounts[] | select(.group=="premium") | .access_key' $(if $(config),$(config),haproxy/config/generated_service_accounts.json) | head -1)" "http://localhost/" 2>&1 || true
+	@echo ""
+	@echo "API Key request:"
+	@cd $(PROJECT_DIR) && curl -v -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="premium") | .access_key' $(if $(config),$(config),haproxy/config/generated_service_accounts.json) | head -1)" "http://localhost/" 2>&1 || true
+	@echo ""
+	@echo "Real S3 request:"
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && go build -o build/minio-ratelimit-test *.go
+	@cd $(PROJECT_DIR)/cmd/ratelimit-test && ./build/minio-ratelimit-test -duration=2s -accounts=1 -tiers=premium -verbose -config=$(if $(config),$(config),haproxy/config/generated_service_accounts.json) 2>&1 | head -50
+
+# Simple HTTP requests showing just rate limit headers
+test-simple-headers:
+	@echo "🔍 SIMPLE HTTP REQUESTS - Rate Limit Headers Only"
+	@echo "================================================="
+	@echo ""
+	@echo "📤 BASIC TIER (Access Key: $$(jq -r '.service_accounts[] | select(.group=="basic") | .access_key' haproxy/config/generated_service_accounts.json | head -1)):"
+	@echo "--------------------------------------------------------------------------------------------------------"
+	@cd $(PROJECT_DIR) && curl -s -D - -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="basic") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" -o /dev/null 2>/dev/null | grep -E "(HTTP|Rate|Limit|Retry|X-)" || echo "No rate limit headers found"
+	@echo ""
+	@echo "📤 STANDARD TIER (Access Key: $$(jq -r '.service_accounts[] | select(.group=="standard") | .access_key' haproxy/config/generated_service_accounts.json | head -1)):"
+	@echo "------------------------------------------------------------------------------------------------------------"
+	@cd $(PROJECT_DIR) && curl -s -D - -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="standard") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" -o /dev/null 2>/dev/null | grep -E "(HTTP|Rate|Limit|Retry|X-)" || echo "No rate limit headers found"
+	@echo ""
+	@echo "📤 PREMIUM TIER (Access Key: $$(jq -r '.service_accounts[] | select(.group=="premium") | .access_key' haproxy/config/generated_service_accounts.json | head -1)):"
+	@echo "---------------------------------------------------------------------------------------------------------"
+	@cd $(PROJECT_DIR) && curl -s -D - -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="premium") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" -o /dev/null 2>/dev/null | grep -E "(HTTP|Rate|Limit|Retry|X-)" || echo "No rate limit headers found"
+
+# Single request header inspection for each tier
+test-single-request:
+	@echo "🔍 COMPLETE HTTP HEADERS - Single Request Per Tier"
+	@echo "=================================================="
+	@echo ""
+	@echo "📋 BASIC TIER - Complete Headers:"
+	@echo "Access Key: $$(jq -r '.service_accounts[] | select(.group=="basic") | .access_key' haproxy/config/generated_service_accounts.json | head -1)"
+	@echo "--------------------------------"
+	@cd $(PROJECT_DIR) && curl -v -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="basic") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" 2>&1
+	@echo ""
+	@echo ""
+	@echo "📋 STANDARD TIER - Complete Headers:"
+	@echo "Access Key: $$(jq -r '.service_accounts[] | select(.group=="standard") | .access_key' haproxy/config/generated_service_accounts.json | head -1)"
+	@echo "-----------------------------------"
+	@cd $(PROJECT_DIR) && curl -v -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="standard") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" 2>&1
+	@echo ""
+	@echo ""
+	@echo "📋 PREMIUM TIER - Complete Headers:"
+	@echo "Access Key: $$(jq -r '.service_accounts[] | select(.group=="premium") | .access_key' haproxy/config/generated_service_accounts.json | head -1)"
+	@echo "----------------------------------"
+	@cd $(PROJECT_DIR) && curl -v -H "X-API-Key: $$(jq -r '.service_accounts[] | select(.group=="premium") | .access_key' haproxy/config/generated_service_accounts.json | head -1)" "http://localhost/" 2>&1
 
 # Backup all configuration files
 backup-configs:
