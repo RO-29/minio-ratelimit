@@ -11,6 +11,9 @@ API_GROUPS_MAP="$CONFIG_DIR/api_key_groups.map"
 MINUTE_LIMITS_MAP="$CONFIG_DIR/rate_limits_per_minute.map"
 SECOND_LIMITS_MAP="$CONFIG_DIR/rate_limits_per_second.map"
 ERROR_MESSAGES_MAP="$CONFIG_DIR/error_messages.map"
+# NEW: Bandwidth limit map files
+DOWNLOAD_LIMITS_MAP="$CONFIG_DIR/bandwidth_limits_download.map"
+UPLOAD_LIMITS_MAP="$CONFIG_DIR/bandwidth_limits_upload.map"
 BACKUP_DIR="$CONFIG_DIR/backups"
 
 # Colors for output
@@ -33,11 +36,17 @@ show_help() {
     echo "  update-key <key> <new_group> [--hot-reload]  Update API key group"
     echo "  list-keys                                List all API keys"
     echo ""
-    echo "Rate Limit Management:"
-    echo "  set-minute-limit <group> <limit> [--hot-reload]  Set per-minute limit for group"
-    echo "  set-second-limit <group> <limit> [--hot-reload]  Set per-second limit for group"
+    echo "Request-Based Rate Limiting:"
+    echo "  set-minute-limit <group> <limit> [--hot-reload]  Set per-minute request limit for group"
+    echo "  set-second-limit <group> <limit> [--hot-reload]  Set per-second request limit for group"
     echo "  get-limits <group>                            Get current limits for group"
     echo "  list-all-limits                               List all rate limits"
+    echo ""
+    echo "Bandwidth-Based Rate Limiting:"
+    echo "  set-download-limit <group> <bytes_or_unit> [--hot-reload]  Set download bandwidth limit"
+    echo "  set-upload-limit <group> <bytes_or_unit> [--hot-reload]    Set upload bandwidth limit"
+    echo "  get-bandwidth-limits <group>                              Get bandwidth limits for group"
+    echo "  show-bandwidth-config                                     Show all bandwidth limits"
     echo ""
     echo "Error Message Management:"
     echo "  set-error-msg <group> <message> [--hot-reload]   Set custom error message"
@@ -53,6 +62,11 @@ show_help() {
     echo "Options:"
     echo "  --hot-reload                    Use HAProxy runtime API to reload maps without process restart"
     echo ""
+    echo "Bandwidth Unit Examples:"
+    echo "  $0 set-download-limit premium 50M      # 50 MB/s"
+    echo "  $0 set-upload-limit standard 10MB      # 10 MB/s"
+    echo "  $0 set-download-limit basic 2048000    # 2048000 bytes/s"
+    echo ""
 }
 
 backup_configs() {
@@ -65,6 +79,9 @@ backup_configs() {
     [ -f "$MINUTE_LIMITS_MAP" ] && cp "$MINUTE_LIMITS_MAP" "${backup_prefix}_minute_limits.map"
     [ -f "$SECOND_LIMITS_MAP" ] && cp "$SECOND_LIMITS_MAP" "${backup_prefix}_second_limits.map"
     [ -f "$ERROR_MESSAGES_MAP" ] && cp "$ERROR_MESSAGES_MAP" "${backup_prefix}_error_messages.map"
+    # NEW: Backup bandwidth limit files
+    [ -f "$DOWNLOAD_LIMITS_MAP" ] && cp "$DOWNLOAD_LIMITS_MAP" "${backup_prefix}_download_limits.map"
+    [ -f "$UPLOAD_LIMITS_MAP" ] && cp "$UPLOAD_LIMITS_MAP" "${backup_prefix}_upload_limits.map"
 
     echo -e "${GREEN}✅ Backup created: ${timestamp}${NC}"
 }
@@ -113,6 +130,8 @@ hot_reload_maps() {
         "/usr/local/etc/haproxy/config/rate_limits_per_minute.map"
         "/usr/local/etc/haproxy/config/rate_limits_per_second.map"
         "/usr/local/etc/haproxy/config/error_messages.map"
+        "/usr/local/etc/haproxy/config/bandwidth_limits_download.map"
+        "/usr/local/etc/haproxy/config/bandwidth_limits_upload.map"
     )
 
     local success_count=0
@@ -501,6 +520,14 @@ restore_backup() {
                 cp "$backup_file" "$ERROR_MESSAGES_MAP"
                 echo -e "${GREEN}✅ Restored error messages${NC}"
                 ;;
+            *_download_limits.map)
+                cp "$backup_file" "$DOWNLOAD_LIMITS_MAP"
+                echo -e "${GREEN}✅ Restored download bandwidth limits${NC}"
+                ;;
+            *_upload_limits.map)
+                cp "$backup_file" "$UPLOAD_LIMITS_MAP"
+                echo -e "${GREEN}✅ Restored upload bandwidth limits${NC}"
+                ;;
         esac
     done
 
@@ -511,6 +538,163 @@ restore_backup() {
     else
         echo -e "${RED}❌ Restored configuration has errors${NC}"
         return 1
+    fi
+}
+
+# NEW: Bandwidth limiting functions
+convert_to_bytes() {
+    local value="$1"
+    local num unit
+    
+    # Extract number and unit - handle both MB and M formats
+    if [[ $value =~ ^([0-9]+)([KMG]?)B?$ ]]; then
+        num=${BASH_REMATCH[1]}
+        unit=${BASH_REMATCH[2]}
+        
+        case $unit in
+            "K") echo $((num * 1024)) ;;
+            "M") echo $((num * 1048576)) ;;
+            "G") echo $((num * 1073741824)) ;;
+            "") echo $num ;;  # No unit, assume bytes
+            *) echo "❌ Invalid unit: $unit" >&2; return 1 ;;
+        esac
+    else
+        echo "❌ Invalid format: $value. Use format like: 50M, 1024K, or plain number for bytes" >&2
+        return 1
+    fi
+}
+
+format_bytes() {
+    local bytes=$1
+    if (( bytes >= 1073741824 )); then
+        echo "$((bytes / 1073741824)) GB/s"
+    elif (( bytes >= 1048576 )); then
+        echo "$((bytes / 1048576)) MB/s"
+    elif (( bytes >= 1024 )); then
+        echo "$((bytes / 1024)) KB/s"
+    else
+        echo "$bytes bytes/s"
+    fi
+}
+
+set_download_limit() {
+    local group="$1"
+    local limit_input="$2"
+    shift 2  # Remove first two arguments to get remaining flags
+    
+    if [ -z "$group" ] || [ -z "$limit_input" ]; then
+        echo -e "${RED}❌ Usage: set-download-limit <group> <bytes_or_unit> [--hot-reload]${NC}"
+        echo "Examples: 50M, 1024K, 2097152"
+        return 1
+    fi
+    
+    local limit_bytes
+    if [[ "$limit_input" =~ ^[0-9]+$ ]]; then
+        limit_bytes=$limit_input
+    else
+        limit_bytes=$(convert_to_bytes "$limit_input")
+        if [ $? -ne 0 ]; then
+            return 1
+        fi
+    fi
+    
+    backup_configs
+    
+    # Update or add the limit
+    if grep -q "^$group " "$DOWNLOAD_LIMITS_MAP" 2>/dev/null; then
+        sed -i.bak "s/^$group [0-9]*/$group $limit_bytes/" "$DOWNLOAD_LIMITS_MAP"
+        echo -e "${GREEN}✅ Updated download limit for $group: $(format_bytes $limit_bytes)${NC}"
+    else
+        echo "$group $limit_bytes" >> "$DOWNLOAD_LIMITS_MAP"
+        echo -e "${GREEN}✅ Added download limit for $group: $(format_bytes $limit_bytes)${NC}"
+    fi
+    
+    reload_haproxy "$@"
+}
+
+set_upload_limit() {
+    local group="$1"
+    local limit_input="$2"
+    shift 2  # Remove first two arguments to get remaining flags
+    
+    if [ -z "$group" ] || [ -z "$limit_input" ]; then
+        echo -e "${RED}❌ Usage: set-upload-limit <group> <bytes_or_unit> [--hot-reload]${NC}"
+        echo "Examples: 25M, 512K, 1048576"
+        return 1
+    fi
+    
+    local limit_bytes
+    if [[ "$limit_input" =~ ^[0-9]+$ ]]; then
+        limit_bytes=$limit_input
+    else
+        limit_bytes=$(convert_to_bytes "$limit_input")
+        if [ $? -ne 0 ]; then
+            return 1
+        fi
+    fi
+    
+    backup_configs
+    
+    # Update or add the limit
+    if grep -q "^$group " "$UPLOAD_LIMITS_MAP" 2>/dev/null; then
+        sed -i.bak "s/^$group [0-9]*/$group $limit_bytes/" "$UPLOAD_LIMITS_MAP"
+        echo -e "${GREEN}✅ Updated upload limit for $group: $(format_bytes $limit_bytes)${NC}"
+    else
+        echo "$group $limit_bytes" >> "$UPLOAD_LIMITS_MAP"
+        echo -e "${GREEN}✅ Added upload limit for $group: $(format_bytes $limit_bytes)${NC}"
+    fi
+    
+    reload_haproxy "$@"
+}
+
+get_bandwidth_limits() {
+    local group="$1"
+    
+    if [ -z "$group" ]; then
+        echo -e "${RED}❌ Usage: get-bandwidth-limits <group>${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Bandwidth limits for group: $group${NC}"
+    
+    local download_limit=$(grep "^$group " "$DOWNLOAD_LIMITS_MAP" 2>/dev/null | awk '{print $2}')
+    local upload_limit=$(grep "^$group " "$UPLOAD_LIMITS_MAP" 2>/dev/null | awk '{print $2}')
+    
+    if [ -n "$download_limit" ]; then
+        echo "  Download limit: $(format_bytes $download_limit)"
+    else
+        echo "  Download limit: not set"
+    fi
+    
+    if [ -n "$upload_limit" ]; then
+        echo "  Upload limit: $(format_bytes $upload_limit)"
+    else
+        echo "  Upload limit: not set"
+    fi
+}
+
+show_bandwidth_config() {
+    echo -e "${BLUE}🌐 BANDWIDTH RATE LIMITS CONFIGURATION${NC}"
+    echo "======================================="
+    echo ""
+    echo -e "${GREEN}📥 DOWNLOAD LIMITS:${NC}"
+    if [ -f "$DOWNLOAD_LIMITS_MAP" ]; then
+        cat "$DOWNLOAD_LIMITS_MAP" | grep -v '^#' | while read group limit; do
+            [[ -z "$group" ]] && continue
+            echo "  $group: $(format_bytes $limit)"
+        done
+    else
+        echo "  No download limits configured"
+    fi
+    echo ""
+    echo -e "${GREEN}📤 UPLOAD LIMITS:${NC}"
+    if [ -f "$UPLOAD_LIMITS_MAP" ]; then
+        cat "$UPLOAD_LIMITS_MAP" | grep -v '^#' | while read group limit; do
+            [[ -z "$group" ]] && continue
+            echo "  $group: $(format_bytes $limit)"
+        done
+    else
+        echo "  No upload limits configured"  
     fi
 }
 
@@ -529,10 +713,13 @@ show_stats() {
 
     echo ""
     list_all_limits
+    
+    echo ""
+    show_bandwidth_config
 
     echo ""
     echo -e "${BLUE}Map Files Status:${NC}"
-    for file in "$API_GROUPS_MAP" "$MINUTE_LIMITS_MAP" "$SECOND_LIMITS_MAP" "$ERROR_MESSAGES_MAP"; do
+    for file in "$API_GROUPS_MAP" "$MINUTE_LIMITS_MAP" "$SECOND_LIMITS_MAP" "$ERROR_MESSAGES_MAP" "$DOWNLOAD_LIMITS_MAP" "$UPLOAD_LIMITS_MAP"; do
         if [ -f "$file" ]; then
             echo -e "${GREEN}✅ $(basename "$file")${NC}"
         else
@@ -591,6 +778,20 @@ case "$1" in
         ;;
     "restore")
         restore_backup "$2"
+        ;;
+    "set-download-limit")
+        shift  # Remove command name
+        set_download_limit "$@"
+        ;;
+    "set-upload-limit")
+        shift  # Remove command name
+        set_upload_limit "$@"
+        ;;
+    "get-bandwidth-limits")
+        get_bandwidth_limits "$2"
+        ;;
+    "show-bandwidth-config")
+        show_bandwidth_config
         ;;
     "show-stats")
         show_stats
